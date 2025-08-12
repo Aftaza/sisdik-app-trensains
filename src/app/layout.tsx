@@ -4,6 +4,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { cn } from '@/lib/utils';
 import { ThemeProvider } from '@/components/theme-provider';
 import ResponsiveLayout from './responsive-layout';
+import { UserProvider } from '@/context/UserContext';
 
 export const metadata: Metadata = {
   title: 'SISDIK App',
@@ -38,7 +39,9 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <ResponsiveLayout>{children}</ResponsiveLayout>
+          <UserProvider>
+            <ResponsiveLayout>{children}</ResponsiveLayout>
+          </UserProvider>
           <Toaster />
         </ThemeProvider>
       </body>

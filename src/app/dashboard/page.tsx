@@ -15,6 +15,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useRouter } from 'next/navigation';
 import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent, ChartBarChart, ChartXAxis, ChartYAxis, ChartCartesianGrid, ChartBar, ChartLegend, ChartLegendContent } from '@/components/ui/chart';
 import { PieChart, Pie, Cell } from 'recharts';
+import { useUser } from '@/context/UserContext';
+import { useToast } from '@/hooks/use-toast';
 
 function RecentViolationsTable() {
   const [isClient, setIsClient] = useState(false);
@@ -68,11 +70,33 @@ function RecentViolationsTable() {
 
 export default function DashboardPage() {
   const [isLoading, setIsLoading] = useState(true);
-  
+  const { setUser } = useUser();
+  const { toast } = useToast();
+
   useEffect(() => {
+    const fetchUserInfo = async () => {
+      try {
+        const response = await fetch('/api/guru-info');
+        if (!response.ok) {
+          const data = await response.json();
+          throw new Error(data.message || 'Failed to fetch user info');
+        }
+        const data = await response.json();
+        setUser({ name: data.nama, job_title: data.jabatan });
+      } catch (error: any) {
+        toast({
+          title: 'Error',
+          description: error.message || 'Failed to load user information',
+          variant: 'destructive',
+        });
+      }
+    };
+
+    fetchUserInfo();
+
     const timer = setTimeout(() => setIsLoading(false), 1500); // Simulate loading
     return () => clearTimeout(timer);
-  }, []);
+  }, [setUser, toast]);
 
   const topStudents = [...students].sort((a, b) => b.totalPoints - a.totalPoints).slice(0, 5);
 
@@ -183,7 +207,7 @@ export default function DashboardPage() {
             <CardDescription>Persentase jenis pelanggaran yang paling sering terjadi.</CardDescription>
           </CardHeader>
           <CardContent className="flex-1 pb-0">
-            {isLoading ? <Skeleton className="w-full h-[250px] rounded-lg" /> : (
+            {isLoading ? <Skeleton className="w-full h-full aspect-square rounded-full" /> : (
                 <ChartContainer config={pieChartConfig} className="mx-auto w-full h-full min-h-[350px]">
                     <PieChart className='flex-col items-center gap-2'>
                       <ChartTooltip content={<ChartTooltipContent nameKey="name" />} />
@@ -233,7 +257,6 @@ export default function DashboardPage() {
                     className="flex items-center p-2 -m-2 rounded-lg hover:bg-accent"
                   >
                     <Avatar className="h-9 w-9">
-                        <AvatarImage src={`https://placehold.co/40x40.png?text=${student.name.charAt(0)}`} alt="Avatar" data-ai-hint="profile picture" />
                         <AvatarFallback>{student.name.charAt(0)}</AvatarFallback>
                     </Avatar>
                     <div className="ml-4 space-y-1">
