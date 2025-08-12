@@ -9,7 +9,7 @@ import {
   SidebarFooter,
   SidebarTrigger,
 } from '@/components/ui/sidebar';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   Home,
@@ -38,6 +38,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator
 } from '../ui/dropdown-menu';
+import { useToast } from '@/hooks/use-toast';
 
 const menuItems = [
   {
@@ -74,8 +75,35 @@ const menuItems = [
 
 export function SidebarContent() {
   const pathname = usePathname();
+  const router = useRouter();
   const { theme, setTheme } = useTheme();
   const { open, toggleSidebar } = useSidebar();
+  const { toast } = useToast();
+
+  const handleLogout = async () => {
+    try {
+      const response = await fetch('/api/auth/logout', {
+        method: 'POST',
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.message || 'Failed to logout');
+      }
+
+      toast({
+        title: 'Success',
+        description: 'Logged out successfully',
+      });
+      router.push('/');
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Something went wrong during logout',
+        variant: 'destructive',
+      });
+    }
+  };
 
   return (
     <>
@@ -141,11 +169,9 @@ export function SidebarContent() {
                   <span>Ganti Tema</span>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <Link href="/">
-                    <LogOut className="mr-2 h-4 w-4" />
-                    <span>Keluar</span>
-                  </Link>
+                <DropdownMenuItem onClick={handleLogout}>
+                  <LogOut className="mr-2 h-4 w-4" />
+                  <span>Keluar</span>
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -158,11 +184,9 @@ export function SidebarContent() {
                 </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem className='hidden group-data-[collapsible=icon]:block'>
-                <SidebarMenuButton tooltip="Keluar" className="h-10">
-                  <Link href="/">
-                      <LogOut />
-                      <span className="sr-only">Keluar</span>
-                  </Link>
+                <SidebarMenuButton onClick={handleLogout} tooltip="Keluar" className="h-10">
+                  <LogOut />
+                  <span className="sr-only">Keluar</span>
                 </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>

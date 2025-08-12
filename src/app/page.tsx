@@ -67,7 +67,10 @@ export default function LoginPage() {
         });
         return;
       }
-
+      toast({
+          title: 'Successfully Logged In!',
+          description: 'Welcome to SISDIK ',
+        });
       router.push('/dashboard');
     } catch (error: any) {
       toast({
