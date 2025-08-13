@@ -329,37 +329,43 @@ export default function DashboardPage() {
                         {isLoading ? (
                             <Skeleton className="w-full h-[250px] rounded-lg" />
                         ) : (
-                            <ChartContainer
-                                config={pieChartConfig}
-                                className="mx-auto w-full h-full min-h-[350px]"
-                            >
-                                <PieChart className="flex-col items-center gap-2">
-                                    <ChartTooltip
-                                        content={<ChartTooltipContent nameKey="name" />}
-                                    />
-                                    <Pie
-                                        data={violationTypeCounts}
-                                        dataKey="value"
-                                        nameKey="name"
-                                        cx="50%"
-                                        cy="50%"
-                                        outerRadius={80}
-                                        label
-                                    >
-                                        {violationTypeCounts.map((entry, index) => (
-                                            <Cell key={`cell-${index}`} fill={entry.fill} />
-                                        ))}
-                                    </Pie>
-                                    <ChartLegend
-                                        content={
-                                            <ChartLegendContent
-                                                nameKey="name"
-                                                className="flex-col items-start gap-2"
-                                            />
-                                        }
-                                    />
-                                </PieChart>
-                            </ChartContainer>
+                            violationTypeCounts.length > 0 ? (
+                                <ChartContainer
+                                    config={pieChartConfig}
+                                    className="mx-auto w-full h-full min-h-[350px]"
+                                >
+                                    <PieChart className="flex-col items-center gap-2">
+                                        <ChartTooltip
+                                            content={<ChartTooltipContent nameKey="name" />}
+                                        />
+                                        <Pie
+                                            data={violationTypeCounts}
+                                            dataKey="value"
+                                            nameKey="name"
+                                            cx="50%"
+                                            cy="50%"
+                                            outerRadius={80}
+                                            label
+                                        >
+                                            {violationTypeCounts.map((entry, index) => (
+                                                <Cell key={`cell-${index}`} fill={entry.fill} />
+                                            ))}
+                                        </Pie>
+                                        <ChartLegend
+                                            content={
+                                                <ChartLegendContent
+                                                    nameKey="name"
+                                                    className="flex-col items-start gap-2"
+                                                />
+                                            }
+                                        />
+                                    </PieChart>
+                                </ChartContainer>
+                            ) : (
+                                <div className="flex items-center justify-center h-[350px]">
+                                    <p className="text-muted-foreground">No data yet.</p>
+                                </div>
+                            )
                         )}
                     </CardContent>
                 </Card>
@@ -381,7 +387,7 @@ export default function DashboardPage() {
                                     </div>
                                 ))}
                             </div>
-                        ) : (
+                        ) : topStudents.length > 0 ? (
                             <div className="space-y-4">
                                 {topStudents.map((student) => (
                                     <Link
@@ -402,13 +408,20 @@ export default function DashboardPage() {
                                                 {student.kelas}
                                             </p>
                                         </div>
-                                        <div className="ml-auto font-medium">
-                                            <Badge variant="destructive">
+                                        <div className="ml-auto font-medium text-right">
+                                            <Badge
+                                                variant="destructive"
+                                                className="whitespace-nowrap"
+                                            >
                                                 {student.total_poin} Poin
                                             </Badge>
                                         </div>
                                     </Link>
                                 ))}
+                            </div>
+                        ) : (
+                            <div className="flex items-center justify-center h-full">
+                                <p className="text-muted-foreground">No data yet.</p>
                             </div>
                         )}
                     </CardContent>
@@ -433,7 +446,7 @@ export default function DashboardPage() {
                     <CardContent>
                         {isLoading ? (
                             <Skeleton className="w-full h-[250px] rounded-lg" />
-                        ) : (
+                        ) : violationByClass.length > 0 ? (
                             <ChartContainer config={barChartConfig} className="w-full h-[300px]">
                                 <ChartBarChart data={violationByClass} accessibilityLayer>
                                     <ChartCartesianGrid vertical={false} />
@@ -452,6 +465,10 @@ export default function DashboardPage() {
                                     </ChartBar>
                                 </ChartBarChart>
                             </ChartContainer>
+                        ) : (
+                            <div className="flex items-center justify-center h-[300px]">
+                                <p className="text-muted-foreground">No data yet.</p>
+                            </div>
                         )}
                     </CardContent>
                 </Card>
