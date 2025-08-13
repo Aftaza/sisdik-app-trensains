@@ -9,8 +9,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { students } from '@/lib/data';
-import type { Student } from '@/lib/data';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -42,6 +40,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { useData } from '@/context/DataContext';
 
 const ROWS_PER_PAGE = 5;
 
@@ -49,6 +48,7 @@ const classOptions = ['Semua', 'X-A', 'X-B', 'X-C', 'XI-A', 'XI-B', 'XI-C', 'XII
 
 export default function StudentsPage() {
   const router = useRouter();
+  const { students } = useData();
   const [currentPage, setCurrentPage] = useState(1);
   const [classFilter, setClassFilter] = useState('Semua');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc' | 'none'>('none');
@@ -57,21 +57,21 @@ export default function StudentsPage() {
     let filtered = students;
 
     if (classFilter !== 'Semua') {
-      filtered = filtered.filter((student) => student.class === classFilter);
+      filtered = filtered.filter((student) => student.kelas === classFilter);
     }
 
     if (sortOrder !== 'none') {
       filtered.sort((a, b) => {
         if (sortOrder === 'asc') {
-          return a.totalPoints - b.totalPoints;
+          return a.total_poin - b.total_poin;
         } else {
-          return b.totalPoints - a.totalPoints;
+          return b.total_poin - a.total_poin;
         }
       });
     }
 
     return filtered;
-  }, [classFilter, sortOrder]);
+  }, [students, classFilter, sortOrder]);
 
 
   const totalPages = Math.ceil(filteredAndSortedStudents.length / ROWS_PER_PAGE);
@@ -87,7 +87,7 @@ export default function StudentsPage() {
     setCurrentPage((prev) => Math.min(prev + 1, totalPages));
   };
 
-  const handleDelete = (studentId: string) => {
+  const handleDelete = (studentId: number) => {
     console.log(`Deleting student with id: ${studentId}`);
     // Implement deletion logic here
   };
@@ -167,20 +167,20 @@ export default function StudentsPage() {
               <TableBody>
                 {currentStudents.map((student) => (
                   <TableRow
-                    key={student.id}
+                    key={student.nis}
                     className="hover:bg-muted/50"
                   >
                     <TableCell
-                      onClick={() => router.push(`/students/${student.id}`)}
+                      onClick={() => router.push(`/students/${student.nis}`)}
                       className="font-medium cursor-pointer"
                     >
-                      {student.name}
+                      {student.nama_lengkap}
                     </TableCell>
-                    <TableCell onClick={() => router.push(`/students/${student.id}`)} className="cursor-pointer">{student.nis}</TableCell>
-                    <TableCell onClick={() => router.push(`/students/${student.id}`)} className="cursor-pointer">{student.class}</TableCell>
-                    <TableCell onClick={() => router.push(`/students/${student.id}`)} className="text-center cursor-pointer">
+                    <TableCell onClick={() => router.push(`/students/${student.nis}`)} className="cursor-pointer">{student.nis}</TableCell>
+                    <TableCell onClick={() => router.push(`/students/${student.nis}`)} className="cursor-pointer">{student.kelas}</TableCell>
+                    <TableCell onClick={() => router.push(`/students/${student.nis}`)} className="text-center cursor-pointer">
                       <Badge variant="destructive">
-                        {student.totalPoints} Poin
+                        {student.total_poin} Poin
                       </Badge>
                     </TableCell>
                     <TableCell className='text-center'>
@@ -195,7 +195,7 @@ export default function StudentsPage() {
                           <StudentForm student={student}>
                             <DropdownMenuItem onSelect={(e) => e.preventDefault()}>Edit</DropdownMenuItem>
                           </StudentForm>
-                          <DeleteConfirmationDialog onConfirm={() => handleDelete(student.id)}>
+                          <DeleteConfirmationDialog onConfirm={() => handleDelete(student.nis)}>
                             <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive focus:text-destructive">Hapus</DropdownMenuItem>
                           </DeleteConfirmationDialog>
                         </DropdownMenuContent>

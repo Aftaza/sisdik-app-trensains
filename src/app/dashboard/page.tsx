@@ -36,6 +36,7 @@ import { useUser } from '@/context/UserContext';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
+import { useData } from '@/context/DataContext';
 
 interface Student {
     nis: number;
@@ -99,114 +100,78 @@ function RecentViolationsTable({ violations }: { violations: Violation[] }) {
 }
 
 export default function DashboardPage() {
-    const [studentsData, setStudentsData] = useState<Student[]>([]);
-    const [violationsData, setViolationsData] = useState<Violation[]>([]);
-    const [teachersData, setTeachersData] = useState<Teacher[]>([]);
-    const [studentsLoading, setStudentsLoading] = useState(true);
-    const [violationsLoading, setViolationsLoading] = useState(true);
-    const [teachersLoading, setTeachersLoading] = useState(true);
+    const { students, setStudents, violations, setViolations, teachers, setTeachers } = useData();
+    const [isLoading, setIsLoading] = useState(true);
 
     const { setUser } = useUser();
     const { toast } = useToast();
 
     useEffect(() => {
-        const fetchUserInfo = async () => {
+        const fetchAllData = async () => {
+            setIsLoading(true);
             try {
-                const response = await fetch('/api/guru-info');
-                if (!response.ok) {
-                    const data = await response.json();
+                const [userInfoRes, studentsRes, violationsRes, teachersRes] = await Promise.all([
+                    fetch('/api/guru-info'),
+                    fetch('/api/students'),
+                    fetch('/api/violations-log'),
+                    fetch('/api/teachers'),
+                ]);
+
+                if (!userInfoRes.ok) {
+                    const data = await userInfoRes.json();
                     throw new Error(data.message || 'Failed to fetch user info');
                 }
-                const data = await response.json();
-                setUser({ name: data.nama, job_title: data.jabatan });
-            } catch (error: any) {
-                toast({
-                    title: 'Error',
-                    description: error.message || 'Failed to load user information',
-                    variant: 'destructive',
-                });
-            }
-        };
+                const userInfo = await userInfoRes.json();
+                setUser({ name: userInfo.nama, job_title: userInfo.jabatan });
 
-        const fetchStudents = async () => {
-            try {
-                const response = await fetch('/api/students');
-                if (!response.ok) {
-                    const data = await response.json();
+                if (!studentsRes.ok) {
+                    const data = await studentsRes.json();
                     throw new Error(data.message || 'Failed to fetch students');
                 }
-                const data = await response.json();
-                setStudentsData(data);
-            } catch (error: any) {
-                toast({
-                    title: 'Error',
-                    description: error.message || 'Failed to load students data',
-                    variant: 'destructive',
-                });
-            } finally {
-                setStudentsLoading(false);
-            }
-        };
+                const studentsData = await studentsRes.json();
+                setStudents(studentsData);
 
-        const fetchViolations = async () => {
-            try {
-                const response = await fetch('/api/violations-log');
-                if (!response.ok) {
-                    const data = await response.json();
+                if (!violationsRes.ok) {
+                    const data = await violationsRes.json();
                     throw new Error(data.message || 'Failed to fetch violations');
                 }
-                const data = await response.json();
-                if (data.length > 0 && !(data.length === 1 && Object.keys(data[0]).length === 0)) {
-                    setViolationsData(data);
+                const violationsData = await violationsRes.json();
+                if (violationsData.length > 0 && !(violationsData.length === 1 && Object.keys(violationsData[0]).length === 0)) {
+                    setViolations(violationsData);
                 }
-            } catch (error: any) {
-                toast({
-                    title: 'Error',
-                    description: error.message || 'Failed to load violations data',
-                    variant: 'destructive',
-                });
-            } finally {
-                setViolationsLoading(false);
-            }
-        };
 
-        const fetchTeachers = async () => {
-            try {
-                const response = await fetch('/api/teachers');
-                if (!response.ok) {
-                    const data = await response.json();
+                if (!teachersRes.ok) {
+                    const data = await teachersRes.json();
                     throw new Error(data.message || 'Failed to fetch teachers');
                 }
-                const data = await response.json();
-                setTeachersData(data);
+                const teachersData = await teachersRes.json();
+                setTeachers(teachersData);
+
             } catch (error: any) {
                 toast({
                     title: 'Error',
-                    description: error.message || 'Failed to load teachers data',
+                    description: error.message || 'Failed to load data',
                     variant: 'destructive',
                 });
             } finally {
-                setTeachersLoading(false);
+                setIsLoading(false);
             }
         };
 
-        fetchUserInfo();
-        fetchStudents();
-        fetchViolations();
-        fetchTeachers();
-    }, [setUser, toast]);
-
-    const isLoading = studentsLoading || violationsLoading || teachersLoading;
+        if (!students.length || !violations.length || !teachers.length) {
+            fetchAllData();
+        }
+    }, [setUser, toast, setStudents, setViolations, setTeachers, students.length, violations.length, teachers.length]);
 
     const topStudents = useMemo(() => {
-        return [...studentsData].sort((a, b) => b.total_poin - a.total_poin).slice(0, 5);
-    }, [studentsData]);
+        return [...students].sort((a, b) => b.total_poin - a.total_poin).slice(0, 5);
+    }, [students]);
 
     const chartColors = ['#2A628F', '#5582A6', '#7CB5B8', '#A3E4D7', '#CFFAD3'];
 
     const violationTypeCounts = useMemo(() => {
         const counts: { [key: string]: number } = {};
-        violationsData.forEach((v) => {
+        violations.forEach((v) => {
             counts[v.jenis_pelanggaran] = (counts[v.jenis_pelanggaran] || 0) + 1;
         });
         return Object.entries(counts).map(([name, value], index) => ({
@@ -214,12 +179,12 @@ export default function DashboardPage() {
             value,
             fill: chartColors[index % chartColors.length],
         }));
-    }, [violationsData]);
+    }, [violations]);
 
     const violationByClass = useMemo(() => {
         const counts: { [key: string]: Set<string> } = {};
-        violationsData.forEach((v) => {
-            const student = studentsData.find((s) => s.nis === v.nis_siswa);
+        violations.forEach((v) => {
+            const student = students.find((s) => s.nis === v.nis_siswa);
             if (student) {
                 if (!counts[student.kelas]) {
                     counts[student.kelas] = new Set();
@@ -232,7 +197,7 @@ export default function DashboardPage() {
             total: studentSet.size,
             fill: chartColors[index % chartColors.length],
         }));
-    }, [violationsData, studentsData]);
+    }, [violations, students]);
 
     const pieChartConfig = useMemo(() => {
         const config: ChartConfig = {
@@ -277,10 +242,10 @@ export default function DashboardPage() {
                         <Users className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        {studentsLoading ? (
+                        {isLoading ? (
                             <Skeleton className="h-8 w-1/4" />
                         ) : (
-                            <div className="text-2xl font-bold">{studentsData.length}</div>
+                            <div className="text-2xl font-bold">{students.length}</div>
                         )}
                         <p className="text-xs text-muted-foreground">
                             Total siswa terdaftar di sekolah
@@ -293,10 +258,10 @@ export default function DashboardPage() {
                         <ShieldAlert className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        {violationsLoading ? (
+                        {isLoading ? (
                             <Skeleton className="h-8 w-1/4" />
                         ) : (
-                            <div className="text-2xl font-bold">{violationsData.length}</div>
+                            <div className="text-2xl font-bold">{violations.length}</div>
                         )}
                         <p className="text-xs text-muted-foreground">Total pelanggaran tercatat</p>
                     </CardContent>
@@ -307,10 +272,10 @@ export default function DashboardPage() {
                         <UserCheck className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                        {teachersLoading ? (
+                        {isLoading ? (
                             <Skeleton className="h-8 w-1/4" />
                         ) : (
-                            <div className="text-2xl font-bold">{teachersData.length}</div>
+                            <div className="text-2xl font-bold">{teachers.length}</div>
                         )}
                         <p className="text-xs text-muted-foreground">Total guru & staf terdaftar</p>
                     </CardContent>
@@ -431,7 +396,7 @@ export default function DashboardPage() {
                         <CardTitle>Pelanggaran Terbaru</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <RecentViolationsTable violations={violationsData} />
+                        <RecentViolationsTable violations={violations} />
                     </CardContent>
                 </Card>
             </div>
