@@ -32,7 +32,7 @@ import {
     ChartLegendContent,
 } from '@/components/ui/chart';
 import { PieChart, Pie, Cell } from 'recharts';
-import { useUser } from '@/context/UserContext';
+import { useSession } from 'next-auth/react';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
@@ -103,26 +103,18 @@ export default function DashboardPage() {
     const { students, setStudents, violations, setViolations, teachers, setTeachers } = useData();
     const [isLoading, setIsLoading] = useState(true);
 
-    const { setUser } = useUser();
+    
     const { toast } = useToast();
 
     useEffect(() => {
         const fetchAllData = async () => {
             setIsLoading(true);
             try {
-                const [userInfoRes, studentsRes, violationsRes, teachersRes] = await Promise.all([
-                    fetch('/api/guru-info'),
+                const [studentsRes, violationsRes, teachersRes] = await Promise.all([
                     fetch('/api/students'),
                     fetch('/api/violations-log'),
                     fetch('/api/teachers'),
                 ]);
-
-                if (!userInfoRes.ok) {
-                    const data = await userInfoRes.json();
-                    throw new Error(data.message || 'Failed to fetch user info');
-                }
-                const userInfo = await userInfoRes.json();
-                setUser({ name: userInfo.nama, job_title: userInfo.jabatan });
 
                 if (!studentsRes.ok) {
                     const data = await studentsRes.json();
@@ -161,7 +153,7 @@ export default function DashboardPage() {
         if (!students.length || !violations.length || !teachers.length) {
             fetchAllData();
         }
-    }, [setUser, toast, setStudents, setViolations, setTeachers, students.length, violations.length, teachers.length]);
+    }, [toast, setStudents, setViolations, setTeachers, students.length, violations.length, teachers.length]);
 
     const topStudents = useMemo(() => {
         return [...students].sort((a, b) => b.total_poin - a.total_poin).slice(0, 5);

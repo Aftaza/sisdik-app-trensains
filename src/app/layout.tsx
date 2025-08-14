@@ -4,7 +4,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { cn } from '@/lib/utils';
 import { ThemeProvider } from '@/components/theme-provider';
 import ResponsiveLayout from './responsive-layout';
-import { UserProvider } from '@/context/UserContext';
+import AppProvider from '@/context/UserContext';
 import { DataProvider } from '@/context/DataContext';
 
 export const metadata: Metadata = {
@@ -48,11 +48,11 @@ export default function RootLayout({
                     enableSystem
                     disableTransitionOnChange
                 >
-                    <UserProvider>
+                    <AppProvider>
                         <DataProvider>
                             <ResponsiveLayout>{children}</ResponsiveLayout>
                         </DataProvider>
-                    </UserProvider>
+                    </AppProvider>
                     <Toaster />
                 </ThemeProvider>
             </body>

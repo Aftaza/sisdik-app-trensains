@@ -39,7 +39,7 @@ import {
   DropdownMenuSeparator
 } from '../ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
-import { useUser } from '@/context/UserContext';
+import { useSession, signOut } from 'next-auth/react';
 
 const menuItems = [
   {
@@ -80,35 +80,15 @@ export function SidebarContent() {
   const { theme, setTheme } = useTheme();
   const { open, toggleSidebar } = useSidebar();
   const { toast } = useToast();
-  const { user } = useUser();
+    const { data: session } = useSession();
+  const user = session?.user;
 
   const getInitials = (name?: string): string =>
   (name || '').trim().split(/\s+/)
     .map(word => word[0]).slice(0, 2).join('').toUpperCase() || '??';
 
   const handleLogout = async () => {
-    try {
-      const response = await fetch('/api/auth/logout', {
-        method: 'POST',
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.message || 'Failed to logout');
-      }
-
-      toast({
-        title: 'Success',
-        description: 'Logged out successfully',
-      });
-      router.push('/');
-    } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: error.message || 'Something went wrong during logout',
-        variant: 'destructive',
-      });
-    }
+    await signOut({ redirect: true, callbackUrl: '/' });
   };
 
   return (
@@ -154,11 +134,11 @@ export function SidebarContent() {
         <div className="flex items-center group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:justify-center">
             <div className="flex items-center gap-3 group-data-[collapsible=icon]:hidden">
               <Avatar className="h-9 w-9">
-                  <AvatarFallback>{getInitials(user?.name)}</AvatarFallback>
+                  <AvatarFallback>{getInitials(user?.nama)}</AvatarFallback>
               </Avatar>
               <div className="flex flex-col">
-                  <p className="text-sm font-medium leading-none">{user?.name || 'Loading...'}</p>
-                  <p className="text-xs text-muted-foreground">{user?.job_title || ''}</p>
+                  <p className="text-sm font-medium leading-none">{user?.nama || 'Loading...'}</p>
+                  <p className="text-xs text-muted-foreground">{user?.jabatan || ''}</p>
               </div>
             </div>
              <DropdownMenu>
