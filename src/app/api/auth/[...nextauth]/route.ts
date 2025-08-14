@@ -33,14 +33,17 @@ export const authOptions = {
 
                     const data = await response.json();
                     if (!response.ok) {
-                        console.log("error");
-                        return null;
+                        console.log("error response");
+                        throw new Error(data.msg || "Authentication failed. Please check your email or password.");
                     }
 
                     const { jwt, user } = data;
 
                     return { ...user, jwt };
                 } catch (error) {
+                    if (error instanceof Error) {
+                        throw new Error(error.message);
+                    }
                     return null;
                 }
             },
