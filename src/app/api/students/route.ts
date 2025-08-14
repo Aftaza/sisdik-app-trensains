@@ -30,6 +30,12 @@ export async function GET(req: NextRequest) {
             );
         }
 
+        data.forEach((siswa: any) => {
+            if (siswa.total_poin === ''){
+                siswa.total_poin = 0;
+            }
+        });
+
         return NextResponse.json(data);
     } catch (error) {
         console.error(error);
