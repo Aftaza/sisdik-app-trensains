@@ -40,7 +40,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useData } from '@/context/DataContext';
+import useSWR from 'swr';
+import { fetcher } from '@/lib/fetcher';
+
+
+interface Student {
+    nis: number;
+    nama_lengkap: string;
+    kelas: string;
+    total_poin: number;
+}
 
 const ROWS_PER_PAGE = 5;
 
@@ -48,12 +57,13 @@ const classOptions = ['Semua', 'X-A', 'X-B', 'X-C', 'XI-A', 'XI-B', 'XI-C', 'XII
 
 export default function StudentsPage() {
   const router = useRouter();
-  const { students } = useData();
+  const { data: students, error } = useSWR<Student[]>('/api/students', fetcher);
   const [currentPage, setCurrentPage] = useState(1);
   const [classFilter, setClassFilter] = useState('Semua');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc' | 'none'>('none');
 
   const filteredAndSortedStudents = useMemo(() => {
+    if (!students) return [];
     let filtered = students;
 
     if (classFilter !== 'Semua') {
@@ -72,6 +82,10 @@ export default function StudentsPage() {
 
     return filtered;
   }, [students, classFilter, sortOrder]);
+
+  if (error) return <div>Failed to load students</div>;
+  if (!students) return <div>Loading...</div>;
+
 
 
   const totalPages = Math.ceil(filteredAndSortedStudents.length / ROWS_PER_PAGE);

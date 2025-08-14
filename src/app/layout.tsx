@@ -5,7 +5,6 @@ import { cn } from '@/lib/utils';
 import { ThemeProvider } from '@/components/theme-provider';
 import ResponsiveLayout from './responsive-layout';
 import AppProvider from '@/context/UserContext';
-import { DataProvider } from '@/context/DataContext';
 
 export const metadata: Metadata = {
     title: 'SISDIK App',
@@ -49,9 +48,9 @@ export default function RootLayout({
                     disableTransitionOnChange
                 >
                     <AppProvider>
-                        <DataProvider>
-                            <ResponsiveLayout>{children}</ResponsiveLayout>
-                        </DataProvider>
+                        
+                        <ResponsiveLayout>{children}</ResponsiveLayout>
+                        
                     </AppProvider>
                     <Toaster />
                 </ThemeProvider>

@@ -20,10 +20,10 @@ export type Violation = {
 };
 
 export type Teacher = {
-    id: string;
-    name: string;
+    id: number;
+    nama: string;
     email: string;
-    role: 'Guru BK' | 'Wali Kelas' | 'Kepala Sekolah';
+    jabatan: string;
 };
 
 export type ViolationType = {
@@ -49,12 +49,12 @@ export const students: Student[] = [
     { id: '5', name: 'Eko Prasetyo', nis: '12349', class: 'X-B', totalPoints: 30 },
 ];
 
-export const teachers: Teacher[] = [
-    { id: 't1', name: 'Dr. Anisa Rahmawati', email: 'anisa.r@sekolah.id', role: 'Kepala Sekolah' },
-    { id: 't2', name: 'Bambang Supriadi', email: 'bambang.s@sekolah.id', role: 'Wali Kelas' },
-    { id: 't3', name: 'Siti Nurhaliza', email: 'siti.n@sekolah.id', role: 'Guru BK' },
-    { id: 't4', name: 'Ahmad Fauzi', email: 'ahmad.f@sekolah.id', role: 'Wali Kelas' },
-];
+// export const teachers: Teacher[] = [
+//     { id: 't1', name: 'Dr. Anisa Rahmawati', email: 'anisa.r@sekolah.id', role: 'Kepala Sekolah' },
+//     { id: 't2', name: 'Bambang Supriadi', email: 'bambang.s@sekolah.id', role: 'Wali Kelas' },
+//     { id: 't3', name: 'Siti Nurhaliza', email: 'siti.n@sekolah.id', role: 'Guru BK' },
+//     { id: 't4', name: 'Ahmad Fauzi', email: 'ahmad.f@sekolah.id', role: 'Wali Kelas' },
+// ];
 
 export const violations: Violation[] = [
     {

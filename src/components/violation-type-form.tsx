@@ -25,7 +25,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from './ui/select';
-import { teachers } from '@/lib/data';
 import type { ViolationType } from '@/lib/data';
 
 const formSchema = z.object({

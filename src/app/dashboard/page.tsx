@@ -36,7 +36,8 @@ import { useSession } from 'next-auth/react';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
-import { useData } from '@/context/DataContext';
+import useSWR from 'swr';
+import { fetcher } from '@/lib/fetcher';
 
 interface Student {
     nis: number;
@@ -83,85 +84,70 @@ function RecentViolationsTable({ violations }: { violations: Violation[] }) {
                 </TableRow>
             </TableHeader>
             <TableBody>
-                {recentViolations.map((v) => (
-                    <TableRow key={v.id}>
-                        <TableCell className="font-medium">{v.nama_siswa}</TableCell>
-                        <TableCell>
-                            <Badge variant="secondary">{v.jenis_pelanggaran}</Badge>
-                        </TableCell>
-                        <TableCell>
-                            {isClient ? format(new Date(v.tanggal_terjadi), 'dd/MM/yyyy', { locale: id }) : ''}
-                        </TableCell>
-                    </TableRow>
-                ))}
+                {recentViolations.map((v) => {
+                    // Periksa apakah `tanggal_terjadi` adalah string yang valid
+                    const date = new Date(v.tanggal_terjadi);
+                    const isValidDate = !isNaN(date.getTime()); // Cek apakah tanggal valid
+
+                    return (
+                        <TableRow key={v.id}>
+                            <TableCell className="font-medium">{v.nama_siswa}</TableCell>
+                            <TableCell>
+                                <Badge variant="secondary">{v.jenis_pelanggaran}</Badge>
+                            </TableCell>
+                            <TableCell>
+                                {isClient && isValidDate ? format(date, 'dd/MM/yyyy', { locale: id }) : 'Tanggal tidak valid'}
+                            </TableCell>
+                        </TableRow>
+                    );
+                })}
             </TableBody>
         </Table>
     );
 }
 
-export default function DashboardPage() {
-    const { students, setStudents, violations, setViolations, teachers, setTeachers } = useData();
-    const [isLoading, setIsLoading] = useState(true);
+export default function DashboardPage() { 
+    const { data: students, error: studentsError } = useSWR<Student[]>('/api/students', fetcher);
+    const { data: violations, error: violationsError } = useSWR<Violation[]>('/api/violations-log', fetcher);
+    const { data: teachers, error: teachersError } = useSWR<Teacher[]>('/api/teachers', fetcher);
 
-    
+    const isLoading = !students && !violations && !teachers;
+
     const { toast } = useToast();
 
     useEffect(() => {
-        const fetchAllData = async () => {
-            setIsLoading(true);
-            try {
-                const [studentsRes, violationsRes, teachersRes] = await Promise.all([
-                    fetch('/api/students'),
-                    fetch('/api/violations-log'),
-                    fetch('/api/teachers'),
-                ]);
-
-                if (!studentsRes.ok) {
-                    const data = await studentsRes.json();
-                    throw new Error(data.message || 'Failed to fetch students');
-                }
-                const studentsData = await studentsRes.json();
-                setStudents(studentsData);
-
-                if (!violationsRes.ok) {
-                    const data = await violationsRes.json();
-                    throw new Error(data.message || 'Failed to fetch violations');
-                }
-                const violationsData = await violationsRes.json();
-                if (violationsData.length > 0 && !(violationsData.length === 1 && Object.keys(violationsData[0]).length === 0)) {
-                    setViolations(violationsData);
-                }
-
-                if (!teachersRes.ok) {
-                    const data = await teachersRes.json();
-                    throw new Error(data.message || 'Failed to fetch teachers');
-                }
-                const teachersData = await teachersRes.json();
-                setTeachers(teachersData);
-
-            } catch (error: any) {
-                toast({
-                    title: 'Error',
-                    description: error.message || 'Failed to load data',
-                    variant: 'destructive',
-                });
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
-        if (!students.length || !violations.length || !teachers.length) {
-            fetchAllData();
+        if (studentsError) {
+            toast({
+                title: 'Error',
+                description: studentsError.message || 'Failed to fetch students',
+                variant: 'destructive',
+            });
         }
-    }, [toast, setStudents, setViolations, setTeachers, students.length, violations.length, teachers.length]);
+        if (violationsError) {
+            toast({
+                title: 'Error',
+                description: violationsError.message || 'Failed to fetch violations',
+                variant: 'destructive',
+            });
+        }
+        if (teachersError) {
+            toast({
+                title: 'Error',
+                description: teachersError.message || 'Failed to fetch teachers',
+                variant: 'destructive',
+            });
+        }
+    }, [studentsError, violationsError, teachersError, toast]);
 
     const topStudents = useMemo(() => {
+        if (!students) return [];
         return [...students].sort((a, b) => b.total_poin - a.total_poin).slice(0, 5);
     }, [students]);
 
     const chartColors = ['#2A628F', '#5582A6', '#7CB5B8', '#A3E4D7', '#CFFAD3'];
 
     const violationTypeCounts = useMemo(() => {
+        if (!violations) return [];
         const counts: { [key: string]: number } = {};
         violations.forEach((v) => {
             counts[v.jenis_pelanggaran] = (counts[v.jenis_pelanggaran] || 0) + 1;
@@ -174,6 +160,7 @@ export default function DashboardPage() {
     }, [violations]);
 
     const violationByClass = useMemo(() => {
+        if (!violations || !students) return [];
         const counts: { [key: string]: Set<string> } = {};
         violations.forEach((v) => {
             const student = students.find((s) => s.nis === v.nis_siswa);
@@ -193,7 +180,7 @@ export default function DashboardPage() {
 
     const pieChartConfig = useMemo(() => {
         const config: ChartConfig = {
-            value: { label: 'Siswa' },
+            value: { label: 'Pelanggaran' },
         };
         violationTypeCounts.forEach((item) => {
             if (item.name) {
@@ -237,7 +224,7 @@ export default function DashboardPage() {
                         {isLoading ? (
                             <Skeleton className="h-8 w-1/4" />
                         ) : (
-                            <div className="text-2xl font-bold">{students.length}</div>
+                            <div className="text-2xl font-bold">{students?.length || 0}</div>
                         )}
                         <p className="text-xs text-muted-foreground">
                             Total siswa terdaftar di sekolah
@@ -253,7 +240,7 @@ export default function DashboardPage() {
                         {isLoading ? (
                             <Skeleton className="h-8 w-1/4" />
                         ) : (
-                            <div className="text-2xl font-bold">{violations.length}</div>
+                            <div className="text-2xl font-bold">{violations?.length || 0}</div>
                         )}
                         <p className="text-xs text-muted-foreground">Total pelanggaran tercatat</p>
                     </CardContent>
@@ -267,7 +254,7 @@ export default function DashboardPage() {
                         {isLoading ? (
                             <Skeleton className="h-8 w-1/4" />
                         ) : (
-                            <div className="text-2xl font-bold">{teachers.length}</div>
+                            <div className="text-2xl font-bold">{teachers?.length || 0}</div>
                         )}
                         <p className="text-xs text-muted-foreground">Total guru & staf terdaftar</p>
                     </CardContent>
@@ -388,7 +375,7 @@ export default function DashboardPage() {
                         <CardTitle>Pelanggaran Terbaru</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <RecentViolationsTable violations={violations} />
+                        <RecentViolationsTable violations={violations || []} />
                     </CardContent>
                 </Card>
             </div>
