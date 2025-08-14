@@ -3,7 +3,7 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { PlusCircle, Users, ShieldAlert, UserCheck } from 'lucide-react';
-import { ViolationForm } from '@/components/violation-form';
+// import { ViolationForm } from '@/components/violation-form';
 import {
     Table,
     TableBody,
@@ -206,12 +206,12 @@ export default function DashboardPage() {
         <>
             <div className="flex items-center justify-between">
                 <h1 className="text-3xl font-bold font-headline">Dashboard Utama</h1>
-                <ViolationForm>
+                {/* <ViolationForm> */}
                     <Button>
                         <PlusCircle className="mr-2 h-4 w-4" />
                         Catat Pelanggaran
                     </Button>
-                </ViolationForm>
+                {/* </ViolationForm> */}
             </div>
 
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">

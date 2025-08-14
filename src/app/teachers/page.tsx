@@ -24,13 +24,7 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { DeleteConfirmationDialog } from '@/components/delete-confirmation-dialog';
-
-interface Teacher {
-    id: number;
-    nama: string;
-    email: string;
-    jabatan: string;
-}
+import { Teacher } from '@/lib/data';
 
 const ROWS_PER_PAGE = 10;
 

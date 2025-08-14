@@ -1,9 +1,8 @@
 export type Student = {
-    id: string;
-    name: string;
-    nis: string;
-    class: string;
-    totalPoints: number;
+    nis: number;
+    nama: string;
+    kelas: string;
+    total_poin: number;
 };
 
 export type Violation = {
@@ -28,25 +27,25 @@ export type Teacher = {
 
 export type ViolationType = {
     id: string;
-    name: string;
-    category: 'Berat' | 'Sedang' | 'Ringan';
-    creator: string;
-    points: number;
+    nama_pelanggaran: string;
+    kategori: string;
+    pembuat: string;
+    poin: number;
 };
 
 export type Sanction = {
     id: string;
-    no: number;
-    coaching: string;
-    pointRange: string;
+    pembinaan: string;
+    start_poin: number;
+    end_poin: number;
 };
 
 export const students: Student[] = [
-    { id: '1', name: 'Budi Santoso', nis: '12345', class: 'XII-A', totalPoints: 120 },
-    { id: '2', name: 'Citra Lestari', nis: '12346', class: 'XII-B', totalPoints: 95 },
-    { id: '3', name: 'Agus Wijaya', nis: '12347', class: 'XI-A', totalPoints: 70 },
-    { id: '4', name: 'Dewi Anggraini', nis: '12348', class: 'XI-C', totalPoints: 50 },
-    { id: '5', name: 'Eko Prasetyo', nis: '12349', class: 'X-B', totalPoints: 30 },
+    { nama: 'Budi Santoso', nis: 12345, kelas: 'XII-A', total_poin: 120 },
+    { nama: 'Citra Lestari', nis: 12346, kelas: 'XII-B', total_poin: 95 },
+    { nama: 'Agus Wijaya', nis: 12347, kelas: 'XI-A', total_poin: 70 },
+    { nama: 'Dewi Anggraini', nis: 12348, kelas: 'XI-C', total_poin: 50 },
+    { nama: 'Eko Prasetyo', nis: 12349, kelas: 'X-B', total_poin: 30 },
 ];
 
 // export const teachers: Teacher[] = [
@@ -119,59 +118,44 @@ export const violations: Violation[] = [
     },
 ];
 
-export const violationTypesData: ViolationType[] = [
-    { id: 'vt1', name: 'Bullying', category: 'Berat', creator: 'Siti Nurhaliza', points: 20 },
-    { id: 'vt2', name: 'Cheating', category: 'Berat', creator: 'Siti Nurhaliza', points: 50 },
-    { id: 'vt3', name: 'Tardiness', category: 'Ringan', creator: 'Bambang Supriadi', points: 5 },
-    { id: 'vt4', name: 'Disrespect', category: 'Sedang', creator: 'Ahmad Fauzi', points: 15 },
-    { id: 'vt5', name: 'Vandalism', category: 'Sedang', creator: 'Bambang Supriadi', points: 25 },
-    { id: 'vt6', name: 'Skipping Class', category: 'Sedang', creator: 'Ahmad Fauzi', points: 10 },
-    {
-        id: 'vt7',
-        name: 'Uniform Violation',
-        category: 'Ringan',
-        creator: 'Siti Nurhaliza',
-        points: 5,
-    },
-    { id: 'vt8', name: 'Theft', category: 'Berat', creator: 'Dr. Anisa Rahmawati', points: 75 },
-];
 
-export const violationTypes: string[] = [
-    'Bullying',
-    'Cheating',
-    'Tardiness',
-    'Disrespect',
-    'Theft',
-    'Vandalism',
-    'Skipping Class',
-    'Uniform Violation',
-];
 
-export const sanctionsData: Sanction[] = [
-    {
-        id: 's1',
-        no: 1,
-        coaching: 'Peringatan lisan oleh guru piket/wali kelas.',
-        pointRange: '1-15',
-    },
-    {
-        id: 's2',
-        no: 2,
-        coaching: 'Peringatan tertulis dan pemanggilan orang tua/wali.',
-        pointRange: '16-30',
-    },
-    { id: 's3', no: 3, coaching: 'Tugas khusus yang bersifat edukatif.', pointRange: '31-50' },
-    { id: 's4', no: 4, coaching: 'Skorsing selama 1-3 hari.', pointRange: '51-75' },
-    {
-        id: 's5',
-        no: 5,
-        coaching: 'Skorsing selama 4-6 hari dan wajib lapor.',
-        pointRange: '76-100',
-    },
-    {
-        id: 's6',
-        no: 6,
-        coaching: 'Dikembalikan kepada orang tua/wali (dikeluarkan).',
-        pointRange: '>100',
-    },
-];
+// export const violationTypes: string[] = [
+//     'Bullying',
+//     'Cheating',
+//     'Tardiness',
+//     'Disrespect',
+//     'Theft',
+//     'Vandalism',
+//     'Skipping Class',
+//     'Uniform Violation',
+// ];
+
+// export const sanctionsData: Sanction[] = [
+//     {
+//         id: 's1',
+//         no: 1,
+//         coaching: 'Peringatan lisan oleh guru piket/wali kelas.',
+//         pointRange: '1-15',
+//     },
+//     {
+//         id: 's2',
+//         no: 2,
+//         coaching: 'Peringatan tertulis dan pemanggilan orang tua/wali.',
+//         pointRange: '16-30',
+//     },
+//     { id: 's3', no: 3, coaching: 'Tugas khusus yang bersifat edukatif.', pointRange: '31-50' },
+//     { id: 's4', no: 4, coaching: 'Skorsing selama 1-3 hari.', pointRange: '51-75' },
+//     {
+//         id: 's5',
+//         no: 5,
+//         coaching: 'Skorsing selama 4-6 hari dan wajib lapor.',
+//         pointRange: '76-100',
+//     },
+//     {
+//         id: 's6',
+//         no: 6,
+//         coaching: 'Dikembalikan kepada orang tua/wali (dikeluarkan).',
+//         pointRange: '>100',
+//     },
+// ];
