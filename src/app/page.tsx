@@ -91,11 +91,11 @@ export default function LoginPage() {
         <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background">
             <div
                 aria-hidden="true"
-                className="absolute -top-1/10 -left-1/10 h-96 w-96 animate-blob-1 rounded-full bg-primary/30 opacity-80 blur-sm filter"
+                className="absolute -top-1/10 -left-1/10 h-96 w-96 animate-blob-1 rounded-full bg-primary/30 opacity-50 blur-xl filter"
             ></div>
             <div
                 aria-hidden="true"
-                className="absolute -bottom-1/10 -right-1/10 h-96 w-96 animate-blob-2 rounded-full bg-primary/50 opacity-80 blur-sm filter"
+                className="absolute -bottom-1/10 -right-1/10 h-96 w-96 animate-blob-2 rounded-full bg-primary/50 opacity-50 blur-xl filter"
             ></div>
             <Card className="z-10 mx-auto w-full max-w-sm animate-fade-in-up">
                 <CardHeader>
