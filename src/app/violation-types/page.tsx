@@ -2,7 +2,7 @@
 
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, ChevronRight, PlusCircle, MoreVertical } from 'lucide-react';
+import { ChevronLeft, ChevronRight, PlusCircle, MoreVertical, Loader2 } from 'lucide-react';
 import RootLayout from '../dashboard/layout';
 import {
     Table,
@@ -25,6 +25,7 @@ import {
 import { DeleteConfirmationDialog } from '@/components/delete-confirmation-dialog';
 import useSWR from 'swr';
 import { fetcher } from '@/lib/fetcher';
+import { cn } from '@/lib/utils';
 
 const ROWS_PER_PAGE = 10;
 
@@ -32,7 +33,7 @@ export default function ViolationTypesPage() {
     const [currentPage, setCurrentPage] = useState(1);
     const { data, error, isLoading } = useSWR('/api/violations-type', fetcher);
 
-    const totalPages = data ? Math.ceil(data.length / ROWS_PER_PAGE) : 0;
+    const totalPages = data && data.length > 0 ? Math.ceil(data.length / ROWS_PER_PAGE) : 0;
     const startIndex = (currentPage - 1) * ROWS_PER_PAGE;
     const endIndex = startIndex + ROWS_PER_PAGE;
     const currentViolationTypes = data ? data.slice(startIndex, endIndex) : [];
@@ -80,66 +81,81 @@ export default function ViolationTypesPage() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {currentViolationTypes.map((type: ViolationType) => (
-                                    <TableRow key={type.id}>
-                                        <TableCell className="font-medium">{type.nama_pelanggaran}</TableCell>
-                                        <TableCell>
-                                            <Badge
-                                                variant={
-                                                    type.kategori === 'Berat'
-                                                        ? 'destructive'
-                                                        : type.kategori === 'Sedang'
-                                                        ? 'default'
-                                                        : 'secondary'
-                                                }
-                                                className={
-                                                    type.kategori === 'Sedang'
-                                                        ? 'bg-amber-500 text-white'
-                                                        : ''
-                                                }
-                                            >
-                                                {type.kategori}
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell>
-                                            <Badge variant="destructive">{type.poin}</Badge>
-                                        </TableCell>
-                                        <TableCell>{type.pembuat}</TableCell>
-                                        <TableCell>
-                                            <DropdownMenu>
-                                                <DropdownMenuTrigger asChild>
-                                                    <Button
-                                                        aria-haspopup="true"
-                                                        size="icon"
-                                                        variant="ghost"
-                                                    >
-                                                        <MoreVertical className="h-4 w-4" />
-                                                        <span className="sr-only">Toggle menu</span>
-                                                    </Button>
-                                                </DropdownMenuTrigger>
-                                                <DropdownMenuContent align="end">
-                                                    {/* <ViolationTypeForm violationType={type}> */}
-                                                        <DropdownMenuItem
-                                                            onSelect={(e) => e.preventDefault()}
-                                                        >
-                                                            Edit
-                                                        </DropdownMenuItem>
-                                                    {/* </ViolationTypeForm> */}
-                                                    <DeleteConfirmationDialog
-                                                        onConfirm={() => handleDelete(type.id)}
-                                                    >
-                                                        <DropdownMenuItem
-                                                            onSelect={(e) => e.preventDefault()}
-                                                            className="text-destructive focus:text-destructive"
-                                                        >
-                                                            Hapus
-                                                        </DropdownMenuItem>
-                                                    </DeleteConfirmationDialog>
-                                                </DropdownMenuContent>
-                                            </DropdownMenu>
+                                {isLoading ? (
+                                    <TableRow>
+                                        <TableCell colSpan={5} className="text-center py-10">
+                                            <Loader2 className="h-6 w-6 animate-spin text-primary mx-auto" />
+                                            <p className="mt-2">Memuat data tipe pelanggaran...</p>
                                         </TableCell>
                                     </TableRow>
-                                ))}
+                                ) : currentViolationTypes.length === 0 ? (
+                                    <TableRow>
+                                        <TableCell colSpan={5} className="text-center py-10">
+                                            Tidak ada data tipe pelanggaran.
+                                        </TableCell>
+                                    </TableRow>
+                                ) : (
+                                    currentViolationTypes.map((type: ViolationType) => (
+                                        <TableRow key={type.id}>
+                                            <TableCell className="font-medium">{type.nama_pelanggaran}</TableCell>
+                                            <TableCell>
+                                                <Badge
+                                                    variant={
+                                                        type.kategori === 'Berat'
+                                                            ? 'destructive'
+                                                            : type.kategori === 'Sedang'
+                                                            ? 'default'
+                                                            : 'secondary'
+                                                    }
+                                                    className={
+                                                        type.kategori === 'Sedang'
+                                                            ? 'bg-amber-500 text-white'
+                                                            : ''
+                                                    }
+                                                >
+                                                    {type.kategori}
+                                                </Badge>
+                                            </TableCell>
+                                            <TableCell>
+                                                <Badge variant="destructive">{type.poin}</Badge>
+                                            </TableCell>
+                                            <TableCell>{type.pembuat}</TableCell>
+                                            <TableCell>
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild>
+                                                        <Button
+                                                            aria-haspopup="true"
+                                                            size="icon"
+                                                            variant="ghost"
+                                                        >
+                                                            <MoreVertical className="h-4 w-4" />
+                                                            <span className="sr-only">Toggle menu</span>
+                                                        </Button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="end">
+                                                        {/* <ViolationTypeForm violationType={type}> */}
+                                                            <DropdownMenuItem
+                                                                onSelect={(e) => e.preventDefault()}
+                                                            >
+                                                                Edit
+                                                            </DropdownMenuItem>
+                                                        {/* </ViolationTypeForm> */}
+                                                        <DeleteConfirmationDialog
+                                                            onConfirm={() => handleDelete(type.id)}
+                                                        >
+                                                            <DropdownMenuItem
+                                                                onSelect={(e) => e.preventDefault()}
+                                                                className="text-destructive focus:text-destructive"
+                                                            >
+                                                                Hapus
+                                                            </DropdownMenuItem>
+                                                        </DeleteConfirmationDialog>
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))
+                                )}
                             </TableBody>
                         </Table>
                     </CardContent>

@@ -1,7 +1,7 @@
 'use client';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, ChevronRight, PlusCircle, MoreVertical } from 'lucide-react';
+import { ChevronLeft, ChevronRight, PlusCircle, MoreVertical, Loader2 } from 'lucide-react';
 import RootLayout from '../dashboard/layout';
 import {
     Table,
@@ -25,6 +25,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { DeleteConfirmationDialog } from '@/components/delete-confirmation-dialog';
 import { Teacher } from '@/lib/data';
+import { cn } from '@/lib/utils';
 
 const ROWS_PER_PAGE = 10;
 
@@ -33,12 +34,11 @@ export default function TeachersPage() {
     const [currentPage, setCurrentPage] = useState(1);
 
     if (error) return <div>Failed to load teachers</div>;
-    if (!teachers) return <div>Loading...</div>;
 
-    const totalPages = Math.ceil(teachers.length / ROWS_PER_PAGE);
+    const totalPages = Math.ceil((teachers || []).length / ROWS_PER_PAGE);
     const startIndex = (currentPage - 1) * ROWS_PER_PAGE;
     const endIndex = startIndex + ROWS_PER_PAGE;
-    const currentTeachers = teachers.slice(startIndex, endIndex);
+    const currentTeachers = (teachers || []).slice(startIndex, endIndex);
 
     const handlePreviousPage = () => {
         setCurrentPage((prev) => Math.max(prev - 1, 1));
@@ -82,60 +82,75 @@ export default function TeachersPage() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {currentTeachers.map((teacher) => (
-                                    <TableRow key={teacher.id}>
-                                        <TableCell className="font-medium">
-                                            {teacher.nama}
-                                        </TableCell>
-                                        <TableCell>{teacher.email}</TableCell>
-                                        <TableCell>
-                                            <Badge
-                                                variant={
-                                                    teacher.jabatan === 'Kepala Sekolah'
-                                                        ? 'destructive'
-                                                        : teacher.jabatan === 'Guru BK'
-                                                        ? 'default'
-                                                        : 'secondary'
-                                                }
-                                            >
-                                                {teacher.jabatan}
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell>
-                                            <DropdownMenu>
-                                                <DropdownMenuTrigger asChild>
-                                                    <Button
-                                                        aria-haspopup="true"
-                                                        size="icon"
-                                                        variant="ghost"
-                                                    >
-                                                        <MoreVertical className="h-4 w-4" />
-                                                        <span className="sr-only">Toggle menu</span>
-                                                    </Button>
-                                                </DropdownMenuTrigger>
-                                                <DropdownMenuContent align="end">
-                                                    <TeacherForm teacher={teacher}>
-                                                        <DropdownMenuItem
-                                                            onSelect={(e) => e.preventDefault()}
-                                                        >
-                                                            Edit
-                                                        </DropdownMenuItem>
-                                                    </TeacherForm>
-                                                    <DeleteConfirmationDialog
-                                                        onConfirm={() => handleDelete(teacher.id)}
-                                                    >
-                                                        <DropdownMenuItem
-                                                            onSelect={(e) => e.preventDefault()}
-                                                            className="text-destructive focus:text-destructive"
-                                                        >
-                                                            Hapus
-                                                        </DropdownMenuItem>
-                                                    </DeleteConfirmationDialog>
-                                                </DropdownMenuContent>
-                                            </DropdownMenu>
+                                {teachers === undefined ? (
+                                    <TableRow>
+                                        <TableCell colSpan={4} className="text-center py-10">
+                                            <Loader2 className="h-6 w-6 animate-spin text-primary mx-auto" />
+                                            <p className="mt-2">Memuat data guru...</p>
                                         </TableCell>
                                     </TableRow>
-                                ))}
+                                ) : currentTeachers.length === 0 ? (
+                                    <TableRow>
+                                        <TableCell colSpan={4} className="text-center py-10">
+                                            Tidak ada data guru.
+                                        </TableCell>
+                                    </TableRow>
+                                ) : (
+                                    currentTeachers.map((teacher) => (
+                                        <TableRow key={teacher.id}>
+                                            <TableCell className="font-medium">
+                                                {teacher.nama}
+                                            </TableCell>
+                                            <TableCell>{teacher.email}</TableCell>
+                                            <TableCell>
+                                                <Badge
+                                                    variant={
+                                                        teacher.jabatan === 'Kepala Sekolah'
+                                                            ? 'destructive'
+                                                            : teacher.jabatan === 'Guru BK'
+                                                            ? 'default'
+                                                            : 'secondary'
+                                                    }
+                                                >
+                                                    {teacher.jabatan}
+                                                </Badge>
+                                            </TableCell>
+                                            <TableCell>
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild>
+                                                        <Button
+                                                            aria-haspopup="true"
+                                                            size="icon"
+                                                            variant="ghost"
+                                                        >
+                                                            <MoreVertical className="h-4 w-4" />
+                                                            <span className="sr-only">Toggle menu</span>
+                                                        </Button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="end">
+                                                        <TeacherForm teacher={teacher}>
+                                                            <DropdownMenuItem
+                                                                onSelect={(e) => e.preventDefault()}
+                                                            >
+                                                                Edit
+                                                            </DropdownMenuItem>
+                                                        </TeacherForm>
+                                                        <DeleteConfirmationDialog
+                                                            onConfirm={() => handleDelete(teacher.id)}
+                                                        >
+                                                            <DropdownMenuItem
+                                                                onSelect={(e) => e.preventDefault()}
+                                                                className="text-destructive focus:text-destructive"
+                                                            >
+                                                                Hapus
+                                                            </DropdownMenuItem>
+                                                        </DeleteConfirmationDialog>
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))
+                                )}
                             </TableBody>
                         </Table>
                     </CardContent>

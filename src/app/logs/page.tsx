@@ -16,7 +16,7 @@ import Link from 'next/link';
 import RootLayout from '../dashboard/layout';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 
 interface Violation {
     id: number;
@@ -37,12 +37,11 @@ export default function ViolationLogsPage() {
     const [currentPage, setCurrentPage] = useState(1);
 
     if (error) return <div>Failed to load violations</div>;
-    if (!violations) return <div>Loading...</div>;
 
-    const totalPages = Math.ceil(violations.length / ROWS_PER_PAGE);
+    const totalPages = violations && violations.length > 0 ? Math.ceil(violations.length / ROWS_PER_PAGE) : 0;
     const startIndex = (currentPage - 1) * ROWS_PER_PAGE;
     const endIndex = startIndex + ROWS_PER_PAGE;
-    const currentViolations = violations.slice(startIndex, endIndex);
+    const currentViolations = violations ? violations.slice(startIndex, endIndex) : [];
 
     const handlePreviousPage = () => {
         setCurrentPage((prev) => Math.max(prev - 1, 1));
@@ -74,35 +73,50 @@ export default function ViolationLogsPage() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {currentViolations.map((v) => (
-                                    <TableRow key={v.id}>
-                                        <TableCell>
-                                            {new Date(v.tanggal_terjadi).toLocaleDateString(
-                                                'id-ID',
-                                                {
-                                                    year: 'numeric',
-                                                    month: 'long',
-                                                    day: 'numeric',
-                                                }
-                                            )}
+                                {violations === undefined ? (
+                                    <TableRow>
+                                        <TableCell colSpan={7} className="text-center py-10">
+                                            <Loader2 className="h-6 w-6 animate-spin text-primary mx-auto" />
+                                            <p className="mt-2">Memuat data log pelanggaran...</p>
                                         </TableCell>
-                                        <TableCell>{v.nis_siswa}</TableCell>
-                                        <TableCell>
-                                            <Link
-                                                href={`/students/${v.id_siswa}`}
-                                                className="font-medium hover:underline"
-                                            >
-                                                {v.nama_siswa}
-                                            </Link>
-                                        </TableCell>
-                                        <TableCell>
-                                            <Badge variant="secondary">{v.jenis_pelanggaran}</Badge>
-                                        </TableCell>
-                                        <TableCell>{v.catatan}</TableCell>
-                                        <TableCell>{v.pelapor}</TableCell>
-                                        <TableCell>{v.guru_bk}</TableCell>
                                     </TableRow>
-                                ))}
+                                ) : currentViolations.length === 0 ? (
+                                    <TableRow>
+                                        <TableCell colSpan={7} className="text-center py-10">
+                                            Tidak ada data log pelanggaran.
+                                        </TableCell>
+                                    </TableRow>
+                                ) : (
+                                    currentViolations.map((v) => (
+                                        <TableRow key={v.id}>
+                                            <TableCell>
+                                                {new Date(v.tanggal_terjadi).toLocaleDateString(
+                                                    'id-ID',
+                                                    {
+                                                        year: 'numeric',
+                                                        month: 'long',
+                                                        day: 'numeric',
+                                                    }
+                                                )}
+                                            </TableCell>
+                                            <TableCell>{v.nis_siswa}</TableCell>
+                                            <TableCell>
+                                                <Link
+                                                    href={`/students/${v.id_siswa}`}
+                                                    className="font-medium hover:underline"
+                                                >
+                                                    {v.nama_siswa}
+                                                </Link>
+                                            </TableCell>
+                                            <TableCell>
+                                                <Badge variant="secondary">{v.jenis_pelanggaran}</Badge>
+                                            </TableCell>
+                                            <TableCell>{v.catatan}</TableCell>
+                                            <TableCell>{v.pelapor}</TableCell>
+                                            <TableCell>{v.guru_bk}</TableCell>
+                                        </TableRow>
+                                    ))
+                                )}
                             </TableBody>
                         </Table>
                     </CardContent>

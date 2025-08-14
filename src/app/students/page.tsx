@@ -20,6 +20,7 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
+  Loader2,
 } from 'lucide-react';
 import RootLayout from '../dashboard/layout';
 import { useRouter } from 'next/navigation';
@@ -42,6 +43,7 @@ import {
 } from '@/components/ui/select';
 import useSWR from 'swr';
 import { fetcher } from '@/lib/fetcher';
+import { cn } from '@/lib/utils';
 
 
 interface Student {
@@ -84,11 +86,10 @@ export default function StudentsPage() {
   }, [students, classFilter, sortOrder]);
 
   if (error) return <div>Failed to load students</div>;
-  if (!students) return <div>Loading...</div>;
 
 
 
-  const totalPages = Math.ceil(filteredAndSortedStudents.length / ROWS_PER_PAGE);
+  const totalPages = filteredAndSortedStudents.length === 0 ? 0 : Math.ceil(filteredAndSortedStudents.length / ROWS_PER_PAGE);
   const startIndex = (currentPage - 1) * ROWS_PER_PAGE;
   const endIndex = startIndex + ROWS_PER_PAGE;
   const currentStudents = filteredAndSortedStudents.slice(startIndex, endIndex);
@@ -179,44 +180,59 @@ export default function StudentsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {currentStudents.map((student) => (
-                  <TableRow
-                    key={student.nis}
-                    className="hover:bg-muted/50"
-                  >
-                    <TableCell
-                      onClick={() => router.push(`/students/${student.nis}`)}
-                      className="font-medium cursor-pointer"
-                    >
-                      {student.nama_lengkap}
-                    </TableCell>
-                    <TableCell onClick={() => router.push(`/students/${student.nis}`)} className="cursor-pointer">{student.nis}</TableCell>
-                    <TableCell onClick={() => router.push(`/students/${student.nis}`)} className="cursor-pointer">{student.kelas}</TableCell>
-                    <TableCell onClick={() => router.push(`/students/${student.nis}`)} className="text-center cursor-pointer">
-                      <Badge variant="destructive">
-                        {student.total_poin} Poin
-                      </Badge>
-                    </TableCell>
-                    <TableCell className='text-center'>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button aria-haspopup="true" size="icon" variant="ghost">
-                            <MoreVertical className="h-4 w-4" />
-                            <span className="sr-only">Toggle menu</span>
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <StudentForm student={student}>
-                            <DropdownMenuItem onSelect={(e) => e.preventDefault()}>Edit</DropdownMenuItem>
-                          </StudentForm>
-                          <DeleteConfirmationDialog onConfirm={() => handleDelete(student.nis)}>
-                            <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive focus:text-destructive">Hapus</DropdownMenuItem>
-                          </DeleteConfirmationDialog>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                {students === undefined ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-10">
+                      <Loader2 className="h-6 w-6 animate-spin text-primary mx-auto" />
+                      <p className="mt-2">Memuat data siswa...</p>
                     </TableCell>
                   </TableRow>
-                ))}
+                ) : currentStudents.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-10">
+                      Tidak ada data siswa.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  currentStudents.map((student) => (
+                    <TableRow
+                      key={student.nis}
+                      className="hover:bg-muted/50"
+                    >
+                      <TableCell
+                        onClick={() => router.push(`/students/${student.nis}`)}
+                        className="font-medium cursor-pointer"
+                      >
+                        {student.nama_lengkap}
+                      </TableCell>
+                      <TableCell onClick={() => router.push(`/students/${student.nis}`)} className="cursor-pointer">{student.nis}</TableCell>
+                      <TableCell onClick={() => router.push(`/students/${student.nis}`)} className="cursor-pointer">{student.kelas}</TableCell>
+                      <TableCell onClick={() => router.push(`/students/${student.nis}`)} className="text-center cursor-pointer">
+                        <Badge variant="destructive">
+                          {student.total_poin} Poin
+                        </Badge>
+                      </TableCell>
+                      <TableCell className='text-center'>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button aria-haspopup="true" size="icon" variant="ghost">
+                              <MoreVertical className="h-4 w-4" />
+                              <span className="sr-only">Toggle menu</span>
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <StudentForm student={student}>
+                              <DropdownMenuItem onSelect={(e) => e.preventDefault()}>Edit</DropdownMenuItem>
+                            </StudentForm>
+                            <DeleteConfirmationDialog onConfirm={() => handleDelete(student.nis)}>
+                              <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive focus:text-destructive">Hapus</DropdownMenuItem>
+                            </DeleteConfirmationDialog>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
               </TableBody>
             </Table>
           </CardContent>
