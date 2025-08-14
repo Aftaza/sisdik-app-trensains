@@ -17,7 +17,7 @@ import {
     FormMessage,
 } from '@/components/ui/form';
 import { useEffect, useState } from 'react';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { signIn } from 'next-auth/react';
@@ -98,7 +98,7 @@ export default function LoginPage() {
                 className="absolute -bottom-1/10 -right-1/10 h-96 w-96 animate-blob-2 rounded-full bg-primary/50 dark:opacity-50 blur-xl filter"
             ></div>
             <Card className="z-10 mx-auto w-full max-w-sm animate-fade-in-up">
-                <CardHeader>
+                <CardHeader className='text-center'>
                     <CardTitle className="text-2xl font-bold font-headline">
                         Selamat Datang di SISDIK
                     </CardTitle>
@@ -151,7 +151,7 @@ export default function LoginPage() {
                                 )}
                             />
                             <Button type="submit" className="w-full" disabled={isLoading}>
-                                {isLoading ? 'Loading...' : 'Login'}
+                                {isLoading ? (<Loader2 className="h-6 w-6 animate-spin text-white mx-auto" />) : 'Login'}
                             </Button>
                         </form>
                     </Form>
