@@ -1,6 +1,6 @@
 export type Student = {
     nis: number;
-    nama: string;
+    nama_lengkap: string;
     kelas: string;
     total_poin: number;
 };
@@ -41,11 +41,11 @@ export type Sanction = {
 };
 
 export const students: Student[] = [
-    { nama: 'Budi Santoso', nis: 12345, kelas: 'XII-A', total_poin: 120 },
-    { nama: 'Citra Lestari', nis: 12346, kelas: 'XII-B', total_poin: 95 },
-    { nama: 'Agus Wijaya', nis: 12347, kelas: 'XI-A', total_poin: 70 },
-    { nama: 'Dewi Anggraini', nis: 12348, kelas: 'XI-C', total_poin: 50 },
-    { nama: 'Eko Prasetyo', nis: 12349, kelas: 'X-B', total_poin: 30 },
+    { nama_lengkap: 'Budi Santoso', nis: 12345, kelas: 'XII-A', total_poin: 120 },
+    { nama_lengkap: 'Citra Lestari', nis: 12346, kelas: 'XII-B', total_poin: 95 },
+    { nama_lengkap: 'Agus Wijaya', nis: 12347, kelas: 'XI-A', total_poin: 70 },
+    { nama_lengkap: 'Dewi Anggraini', nis: 12348, kelas: 'XI-C', total_poin: 50 },
+    { nama_lengkap: 'Eko Prasetyo', nis: 12349, kelas: 'X-B', total_poin: 30 },
 ];
 
 // export const teachers: Teacher[] = [
