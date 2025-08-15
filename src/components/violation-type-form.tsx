@@ -19,6 +19,8 @@ import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import type { ViolationType, Teacher } from '@/lib/data';
+import useSWR from 'swr';
+import { fetcher } from '@/lib/fetcher';
 
 const formSchema = z.object({
     name: z.string().min(3, 'Nama pelanggaran harus diisi minimal 3 karakter.'),
@@ -33,12 +35,14 @@ type ViolationTypeFormProps = {
 };
 
 const categoryOptions = ['Ringan', 'Sedang', 'Berat'];
-const creatorOptions = teachers.map((teacher) => ({ value: teacher.name, label: teacher.name }));
 
 export function ViolationTypeForm({ children, violationType }: ViolationTypeFormProps) {
     const [open, setOpen] = useState(false);
     const { toast } = useToast();
     const isEditMode = !!violationType;
+    const { data: teachers, isLoading } = useSWR<Teacher[]>('/api/teachers', fetcher);
+
+    const creatorOptions = teachers?.map((teacher: Teacher) => ({ value: teacher.nama, label: teacher.nama }));
 
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
@@ -53,8 +57,10 @@ export function ViolationTypeForm({ children, violationType }: ViolationTypeForm
     useEffect(() => {
         if (isEditMode && violationType) {
             form.reset({
-                ...violationType,
+                name: violationType.nama_pelanggaran,
+                category: violationType.kategori,
                 points: violationType.poin || 0,
+                creator: violationType.pembuat,
             });
         } else {
             form.reset({
@@ -121,7 +127,7 @@ export function ViolationTypeForm({ children, violationType }: ViolationTypeForm
                                             </SelectTrigger>
                                         </FormControl>
                                         <SelectContent>
-                                            {categoryOptions.map((opt) => (
+                                            {categoryOptions.map((opt: string) => (
                                                 <SelectItem key={opt} value={opt}>
                                                     {opt}
                                                 </SelectItem>
@@ -158,7 +164,7 @@ export function ViolationTypeForm({ children, violationType }: ViolationTypeForm
                                             </SelectTrigger>
                                         </FormControl>
                                         <SelectContent>
-                                            {creatorOptions.map((opt) => (
+                                            {creatorOptions?.map((opt: { value: string; label: string; }) => (
                                                 <SelectItem key={opt.value} value={opt.value}>
                                                     {opt.label}
                                                 </SelectItem>

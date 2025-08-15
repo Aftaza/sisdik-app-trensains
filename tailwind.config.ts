@@ -59,6 +59,16 @@ export default {
                 border: 'hsl(var(--border))',
                 input: 'hsl(var(--input))',
                 ring: 'hsl(var(--ring))',
+                green: {
+                    '100': '#dcfce7',
+                    '200': '#bbf7d0',
+                    '600': '#16a34a',
+                },
+                yellow: {
+                    '100': '#fef9c3',
+                    '200': '#fef08a',
+                    '600': '#ca8a04',
+                },
                 chart: {
                     '1': 'hsl(212 72% 59%)',
                     '2': 'hsl(262 72% 59%)',

@@ -61,6 +61,19 @@ function SanctionsCard({ totalPoints, studentId }: { totalPoints: number | undef
         });
     };
     
+    if (sanctionLoading) {
+        return (
+            <Card>
+                <CardHeader>
+                    <CardTitle>Tindak Lanjut & Sanksi</CardTitle>
+                </CardHeader>
+                <CardContent className="flex items-center justify-center h-48">
+                    <div className="w-8 h-8 border-4 border-gray-200 rounded-full animate-spin" style={{ borderTopColor: 'black' }} />
+                </CardContent>
+            </Card>
+        );
+    }
+
     if (!sanctionsData || sanctionsData.status === "error" || sanctionsData.pembinaan.length === 0) {
         return (
             <Card>
@@ -134,35 +147,74 @@ export function StudentProfileClient({
         // Implement deletion logic here
     };
 
+    const totalPoints = student?.total_poin;
+
+    const getPointsCardClassName = () => {
+        if (typeof totalPoints !== 'number') {
+            return 'bg-gray-100 border-gray-200';
+        }
+        if (totalPoints === 0) {
+            return 'bg-green-100 border-green-200';
+        } else if (totalPoints > 0 && totalPoints <= 50) {
+            return 'bg-yellow-100 border-yellow-200';
+        } else {
+            return 'bg-destructive/10 border-destructive/20';
+        }
+    };
+
+    const getPointsTextClassName = () => {
+        if (typeof totalPoints !== 'number') {
+            return 'text-gray-500';
+        }
+        if (totalPoints === 0) {
+            return 'text-green-600';
+        } else if (totalPoints > 0 && totalPoints <= 50) {
+            return 'text-yellow-600';
+        } else {
+            return 'text-destructive';
+        }
+    };
+
     return (
         <div className="flex flex-col gap-4">
             <div className="flex items-start justify-between gap-4">
-                <div>
-                    <h1 className="text-3xl font-bold font-headline">{student?.nama_lengkap}</h1>
-                    <p className="text-muted-foreground">
-                        {student?.nis} • {student?.kelas}
-                    </p>
-                </div>
-                <Card className="w-full max-w-xs bg-destructive/10 border-destructive/20">
+                {studentLoading ? (
+                    <div className="flex flex-col gap-2">
+                        <div className="h-8 w-48 bg-gray-200 rounded-md animate-pulse" />
+                        <div className="h-6 w-32 bg-gray-200 rounded-md animate-pulse" />
+                    </div>
+                ) : (
+                    <div>
+                        <h1 className="text-3xl font-bold font-headline">{student?.nama_lengkap}</h1>
+                        <p className="text-muted-foreground">
+                            {student?.nis} • {student?.kelas}
+                        </p>
+                    </div>
+                )}
+                <Card className={`w-full max-w-xs ${getPointsCardClassName()}`}>
                     <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium text-destructive">
+                        <CardTitle className={`text-sm font-medium ${getPointsTextClassName()}`}>
                             Total Poin Pelanggaran
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-5xl font-bold text-destructive">
-                            {student?.total_poin}
-                        </div>
+                        {studentLoading ? (
+                            <div className="h-12 w-24 bg-gray-200 rounded-md animate-pulse" />
+                        ) : (
+                            <div className={`text-5xl font-bold ${getPointsTextClassName()}`}>
+                                {totalPoints}
+                            </div>
+                        )}
                     </CardContent>
                 </Card>
             </div>
 
             <div className="flex justify-start">
                 {/* <ViolationForm studentId={student.id}> */}
-                    <Button>
-                        <PlusCircle className="mr-2 h-4 w-4" />
-                        Catat Pelanggaran
-                    </Button>
+                <Button>
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Catat Pelanggaran
+                </Button>
                 {/* </ViolationForm> */}
             </div>
 
@@ -173,56 +225,61 @@ export function StudentProfileClient({
                             <CardTitle>Riwayat Pelanggaran</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Tanggal</TableHead>
-                                        <TableHead>Jenis Pelanggaran</TableHead>
-                                        <TableHead>Catatan</TableHead>
-                                        <TableHead className="text-right">Poin</TableHead>
-                                        <TableHead>
-                                            <span className="sr-only">Aksi</span>
-                                        </TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {currentViolations.length > 0 ? (
-                                        currentViolations.map((v) => (
-                                            <TableRow key={v.id}>
-                                                <TableCell>
-                                                    {new Date(v.date).toLocaleDateString()}
-                                                </TableCell>
-                                                <TableCell>
-                                                    <Badge variant="secondary">{v.type}</Badge>
-                                                </TableCell>
-                                                <TableCell>{v.notes}</TableCell>
-                                                <TableCell className="text-right font-medium">
-                                                    <Badge
-                                                        variant="destructive"
-                                                        className="text-xs"
-                                                    >
-                                                        +{v.points}
-                                                    </Badge>
-                                                </TableCell>
-                                                <TableCell>
-                                                    <DropdownMenu>
-                                                        <DropdownMenuTrigger asChild>
-                                                            <Button
-                                                                aria-haspopup="true"
-                                                                size="icon"
-                                                                variant="ghost"
-                                                            >
-                                                                <MoreVertical className="h-4 w-4" />
-                                                                <span className="sr-only">
-                                                                    Toggle menu
-                                                                </span>
-                                                            </Button>
-                                                        </DropdownMenuTrigger>
-                                                        <DropdownMenuContent align="end">
-                                                            {/* <ViolationForm
-                                                                violation={v}
-                                                                studentId={student.id}
-                                                            > */}
+                            {violationsLoading ? (
+                                <div className="flex items-center justify-center h-48">
+                                    <div className="w-8 h-8 border-4 border-gray-200 rounded-full animate-spin" style={{ borderTopColor: 'black' }} />
+                                </div>
+                            ) : (
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Tanggal</TableHead>
+                                            <TableHead>Jenis Pelanggaran</TableHead>
+                                            <TableHead>Catatan</TableHead>
+                                            <TableHead className="text-right">Poin</TableHead>
+                                            <TableHead>
+                                                <span className="sr-only">Aksi</span>
+                                            </TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {currentViolations.length > 0 ? (
+                                            currentViolations.map((v) => (
+                                                <TableRow key={v.id}>
+                                                    <TableCell>
+                                                        {new Date(v.date).toLocaleDateString()}
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <Badge variant="secondary">{v.type}</Badge>
+                                                    </TableCell>
+                                                    <TableCell>{v.notes}</TableCell>
+                                                    <TableCell className="text-right font-medium">
+                                                        <Badge
+                                                            variant="destructive"
+                                                            className="text-xs"
+                                                        >
+                                                            +{v.points}
+                                                        </Badge>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <DropdownMenu>
+                                                            <DropdownMenuTrigger asChild>
+                                                                <Button
+                                                                    aria-haspopup="true"
+                                                                    size="icon"
+                                                                    variant="ghost"
+                                                                >
+                                                                    <MoreVertical className="h-4 w-4" />
+                                                                    <span className="sr-only">
+                                                                        Toggle menu
+                                                                    </span>
+                                                                </Button>
+                                                            </DropdownMenuTrigger>
+                                                            <DropdownMenuContent align="end">
+                                                                {/* <ViolationForm
+                                                                    violation={v}
+                                                                    studentId={student.id}
+                                                                > */}
                                                                 <DropdownMenuItem
                                                                     onSelect={(e) =>
                                                                         e.preventDefault()
@@ -230,33 +287,34 @@ export function StudentProfileClient({
                                                                 >
                                                                     Edit
                                                                 </DropdownMenuItem>
-                                                            {/* </ViolationForm> */}
-                                                            <DeleteConfirmationDialog
-                                                                onConfirm={() => handleDelete(v.id)}
-                                                            >
-                                                                <DropdownMenuItem
-                                                                    onSelect={(e) =>
-                                                                        e.preventDefault()
-                                                                    }
-                                                                    className="text-destructive focus:text-destructive"
+                                                                {/* </ViolationForm> */}
+                                                                <DeleteConfirmationDialog
+                                                                    onConfirm={() => handleDelete(v.id)}
                                                                 >
-                                                                    Hapus
-                                                                </DropdownMenuItem>
-                                                            </DeleteConfirmationDialog>
-                                                        </DropdownMenuContent>
-                                                    </DropdownMenu>
+                                                                    <DropdownMenuItem
+                                                                        onSelect={(e) =>
+                                                                            e.preventDefault()
+                                                                        }
+                                                                        className="text-destructive focus:text-destructive"
+                                                                    >
+                                                                        Hapus
+                                                                    </DropdownMenuItem>
+                                                                </DeleteConfirmationDialog>
+                                                            </DropdownMenuContent>
+                                                        </DropdownMenu>
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))
+                                        ) : (
+                                            <TableRow>
+                                                <TableCell colSpan={5} className="text-center">
+                                                    Tidak ada riwayat pelanggaran.
                                                 </TableCell>
                                             </TableRow>
-                                        ))
-                                    ) : (
-                                        <TableRow>
-                                            <TableCell colSpan={5} className="text-center">
-                                                Tidak ada riwayat pelanggaran.
-                                            </TableCell>
-                                        </TableRow>
-                                    )}
-                                </TableBody>
-                            </Table>
+                                        )}
+                                    </TableBody>
+                                </Table>
+                            )}
                         </CardContent>
                         {totalPages > 1 && (
                             <CardFooter className="flex items-center justify-between">

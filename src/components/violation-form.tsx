@@ -15,13 +15,15 @@ import {
 import { Button } from './ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from './ui/form';
 import { Combobox } from './ui/combobox';
-import { students, violationTypes } from '@/lib/data';
+import { students, ViolationType } from '@/lib/data';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { DatePicker } from './ui/date-picker';
 import { Textarea } from './ui/textarea';
 import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import type { Violation } from '@/lib/data';
+import useSWR from 'swr';
+import { fetcher } from '@/lib/fetcher';
 
 const formSchema = z.object({
     studentId: z.string().min(1, 'Siswa harus dipilih.'),
@@ -71,10 +73,12 @@ export function ViolationForm({ children, studentId, violation }: ViolationFormP
         }
     }, [open, isEditMode, violation, studentId, form]);
 
-    const studentOptions = students.map((s) => ({ label: `${s.nama} (${s.nis})`, value: s.nis }));
-    const violationTypeOptions = violationTypes.map((vt) => ({
-        label: `${vt.nama} (+${vt.poin} poin)`,
-        value: vt.name,
+    const studentOptions = students.map((s) => ({ label: `${s.nama_lengkap} (${s.nis})`, value: String(s.nis) }));
+    const { data: violationTypes, isLoading } = useSWR<ViolationType[]>('/api/violations-type', fetcher);
+
+    const violationTypeOptions = violationTypes?.map((vt: ViolationType) => ({
+        label: `${vt.nama_pelanggaran} (+${vt.poin} poin)`,
+        value: vt.id,
     }));
 
     function onSubmit(values: z.infer<typeof formSchema>) {
@@ -145,7 +149,7 @@ export function ViolationForm({ children, studentId, violation }: ViolationFormP
                                             </SelectTrigger>
                                         </FormControl>
                                         <SelectContent>
-                                            {violationTypeOptions.map((type) => (
+                                            {violationTypeOptions?.map((type: { label: string; value: string; }) => (
                                                 <SelectItem key={type.value} value={type.value}>
                                                     {type.label}
                                                 </SelectItem>

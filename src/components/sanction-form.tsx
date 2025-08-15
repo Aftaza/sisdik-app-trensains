@@ -46,7 +46,10 @@ export function SanctionForm({ children, sanction }: SanctionFormProps) {
 
   useEffect(() => {
     if (isEditMode && sanction) {
-      form.reset(sanction);
+      form.reset({
+        coaching: sanction.pembinaan,
+        pointRange: `${sanction.start_poin}-${sanction.end_poin}`,
+      });
     } else {
       form.reset({
         coaching: '',

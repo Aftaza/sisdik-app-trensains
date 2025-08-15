@@ -61,7 +61,11 @@ export function StudentForm({ children, student }: StudentFormProps) {
 
   useEffect(() => {
     if (isEditMode && student) {
-      form.reset(student);
+      form.reset({
+        name: student.nama_lengkap,
+        nis: String(student.nis),
+        class: student.kelas,
+      });
     } else {
         form.reset({
             name: '',
