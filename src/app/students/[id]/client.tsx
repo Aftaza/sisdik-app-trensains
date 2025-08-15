@@ -10,7 +10,6 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-// import { ViolationForm } from '@/components/violation-form';
 import { Button } from '@/components/ui/button';
 import {
     PlusCircle,
@@ -19,6 +18,7 @@ import {
     SquareCheck,
     SquareX,
     MoreVertical,
+    Loader2,
 } from 'lucide-react';
 import type { Sanction, Student, Violation } from '@/lib/data';
 import { useMemo, useState } from 'react';
@@ -45,8 +45,9 @@ interface SanctionsResponse {
 
 const ROWS_PER_PAGE = 5;
 
-function SanctionsCard({ totalPoints, studentId }: { totalPoints: number | undefined, studentId: string | undefined }) {
-    const { data: sanctionsData, error: sanctionError, isLoading: sanctionLoading } = useSWR<SanctionsResponse>(`/api/sanctions/${studentId}`, fetcher);
+// Komponen SanctionsCard
+function SanctionsCard({ studentId }: { studentId: string | undefined }) {
+    const { data: sanctionsData, error: sanctionError, isLoading: sanctionLoading } = useSWR<SanctionsResponse>(studentId ? `/api/sanctions/${studentId}` : null, fetcher);
     const [completedSanctions, setCompletedSanctions] = useState<Set<string>>(new Set());
 
     const handleToggleSanction = (sanctionId: string) => {
@@ -60,29 +61,35 @@ function SanctionsCard({ totalPoints, studentId }: { totalPoints: number | undef
             return newSet;
         });
     };
-    
+
     if (sanctionLoading) {
         return (
             <Card>
-                <CardHeader>
-                    <CardTitle>Tindak Lanjut & Sanksi</CardTitle>
-                </CardHeader>
+                <CardHeader><CardTitle>Tindak Lanjut & Sanksi</CardTitle></CardHeader>
                 <CardContent className="flex items-center justify-center h-48">
                     <div className="w-8 h-8 border-4 border-gray-200 rounded-full animate-spin" style={{ borderTopColor: 'black' }} />
                 </CardContent>
             </Card>
         );
     }
-
+    
+    // 🚨 PERBAIKAN DI SINI:
+    // Tambahkan kondisi untuk error dari SWR
+    if (sanctionError) {
+        return (
+            <Card>
+                <CardHeader><CardTitle>Tindak Lanjut & Sanksi</CardTitle></CardHeader>
+                <CardContent className="text-center text-muted-foreground p-6">Data tidak ditemukan.</CardContent>
+            </Card>
+        );
+    }
+    
+    // Cek apakah data tersedia atau array pembinaan kosong
     if (!sanctionsData || sanctionsData.status === "error" || sanctionsData.pembinaan.length === 0) {
         return (
             <Card>
-                <CardHeader>
-                    <CardTitle>Tindak Lanjut & Sanksi</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <p className="text-center text-muted-foreground">Tidak ada sanksi yang berlaku.</p>
-                </CardContent>
+                <CardHeader><CardTitle>Tindak Lanjut & Sanksi</CardTitle></CardHeader>
+                <CardContent className="text-center text-muted-foreground p-6">Tidak ada sanksi yang berlaku.</CardContent>
             </Card>
         );
     }
@@ -97,9 +104,9 @@ function SanctionsCard({ totalPoints, studentId }: { totalPoints: number | undef
                 <ul className="space-y-4">
                     {sanctionsData.pembinaan.map((pembinaan, index) => (
                         <li
-                            key={index} // ✅ PERBAIKAN: Menggunakan index sebagai key karena tidak ada ID
+                            key={index}
                             className="flex items-start gap-4 cursor-pointer p-2 -m-2 rounded-lg hover:bg-accent"
-                            onClick={() => handleToggleSanction(pembinaan)} // ✅ PERBAIKAN: Menggunakan string pembinaan sebagai ID
+                            onClick={() => handleToggleSanction(pembinaan)}
                         >
                             <div>
                                 {completedSanctions.has(pembinaan) ? (
@@ -109,9 +116,7 @@ function SanctionsCard({ totalPoints, studentId }: { totalPoints: number | undef
                                 )}
                             </div>
                             <div>
-                                <p className="font-medium">
-                                    {pembinaan}
-                                </p>
+                                <p className="font-medium">{pembinaan}</p>
                             </div>
                         </li>
                     ))}
@@ -121,18 +126,19 @@ function SanctionsCard({ totalPoints, studentId }: { totalPoints: number | undef
     );
 }
 
-export function StudentProfileClient({
-    id
-}: StudentProfileClientProps) {
+// Komponen StudentProfileClient
+export function StudentProfileClient({ id }: StudentProfileClientProps) {
     const { data: student, error: studentError, isLoading: studentLoading } = useSWR<Student>(`/api/students/${id}`, fetcher);
     const { data: studentViolations, error: studentViolationsError, isLoading: violationsLoading } = useSWR<Violation[]>(`/api/violations-log/${id}`, fetcher);
-
+    
     const [currentPage, setCurrentPage] = useState(1);
 
-    const totalPages = Math.ceil((studentViolations || []).length / ROWS_PER_PAGE);
+    // 🚨 PERBAIKAN: Menambahkan guard clause untuk menghindari error saat data undefined
+    const violations = studentViolations || [];
+    const totalPages = Math.ceil(violations.length / ROWS_PER_PAGE);
     const startIndex = (currentPage - 1) * ROWS_PER_PAGE;
     const endIndex = startIndex + ROWS_PER_PAGE;
-    const currentViolations = (studentViolations || []).slice(startIndex, endIndex);
+    const currentViolations = violations.slice(startIndex, endIndex);
 
     const handlePreviousPage = () => {
         setCurrentPage((prev) => Math.max(prev - 1, 1));
@@ -144,18 +150,15 @@ export function StudentProfileClient({
 
     const handleDelete = (violationId: string) => {
         console.log(`Deleting violation with id: ${violationId}`);
-        // Implement deletion logic here
     };
 
     const totalPoints = student?.total_poin;
 
     const getPointsCardClassName = () => {
-        if (typeof totalPoints !== 'number') {
+        if (typeof totalPoints !== 'number' || totalPoints === 0) {
             return 'bg-gray-100 border-gray-200';
         }
-        if (totalPoints === 0) {
-            return 'bg-green-100 border-green-200';
-        } else if (totalPoints > 0 && totalPoints <= 50) {
+        if (totalPoints > 0 && totalPoints <= 50) {
             return 'bg-yellow-100 border-yellow-200';
         } else {
             return 'bg-destructive/10 border-destructive/20';
@@ -163,34 +166,44 @@ export function StudentProfileClient({
     };
 
     const getPointsTextClassName = () => {
-        if (typeof totalPoints !== 'number') {
+        if (typeof totalPoints !== 'number' || totalPoints === 0) {
             return 'text-gray-500';
         }
-        if (totalPoints === 0) {
-            return 'text-green-600';
-        } else if (totalPoints > 0 && totalPoints <= 50) {
+        if (totalPoints > 0 && totalPoints <= 50) {
             return 'text-yellow-600';
         } else {
             return 'text-destructive';
         }
     };
+    
+    // 🚨 PERBAIKAN DI SINI:
+    // Cek kondisi error pada student dan violations
+    if (studentLoading || violationsLoading) {
+        return (
+            <div className="flex flex-col gap-4 p-4">
+                <Loader2 className="h-6 w-6 animate-spin text-gray-500 mx-auto" />
+                <p className="text-center text-muted-foreground">Memuat data siswa...</p>
+            </div>
+        )
+    }
+
+    if (studentError || studentViolationsError) {
+        return (
+            <div className="flex flex-col gap-4 p-4">
+                <p className="text-center text-muted-foreground">Data siswa tidak ditemukan.</p>
+            </div>
+        )
+    }
 
     return (
         <div className="flex flex-col gap-4">
             <div className="flex items-start justify-between gap-4">
-                {studentLoading ? (
-                    <div className="flex flex-col gap-2">
-                        <div className="h-8 w-48 bg-gray-200 rounded-md animate-pulse" />
-                        <div className="h-6 w-32 bg-gray-200 rounded-md animate-pulse" />
-                    </div>
-                ) : (
-                    <div>
-                        <h1 className="text-3xl font-bold font-headline">{student?.nama_lengkap}</h1>
-                        <p className="text-muted-foreground">
-                            {student?.nis} • {student?.kelas}
-                        </p>
-                    </div>
-                )}
+                <div>
+                    <h1 className="text-3xl font-bold font-headline">{student?.nama_lengkap}</h1>
+                    <p className="text-muted-foreground">
+                        {student?.nis} • {student?.kelas}
+                    </p>
+                </div>
                 <Card className={`w-full max-w-xs ${getPointsCardClassName()}`}>
                     <CardHeader className="pb-2">
                         <CardTitle className={`text-sm font-medium ${getPointsTextClassName()}`}>
@@ -198,24 +211,18 @@ export function StudentProfileClient({
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        {studentLoading ? (
-                            <div className="h-12 w-24 bg-gray-200 rounded-md animate-pulse" />
-                        ) : (
-                            <div className={`text-5xl font-bold ${getPointsTextClassName()}`}>
-                                {totalPoints}
-                            </div>
-                        )}
+                        <div className={`text-5xl font-bold ${getPointsTextClassName()}`}>
+                            {totalPoints}
+                        </div>
                     </CardContent>
                 </Card>
             </div>
 
             <div className="flex justify-start">
-                {/* <ViolationForm studentId={student.id}> */}
                 <Button>
                     <PlusCircle className="mr-2 h-4 w-4" />
                     Catat Pelanggaran
                 </Button>
-                {/* </ViolationForm> */}
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -346,7 +353,7 @@ export function StudentProfileClient({
                     </Card>
                 </div>
                 <div className="lg:col-span-1">
-                    <SanctionsCard totalPoints={student?.total_poin} studentId={id} />
+                    <SanctionsCard studentId={id} />
                 </div>
             </div>
         </div>
