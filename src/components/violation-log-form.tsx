@@ -25,7 +25,7 @@ import { useSWRConfig } from 'swr';
 import { useSession } from 'next-auth/react';
 import useSWR from 'swr';
 import { fetcher } from '@/lib/fetcher';
-import type { Violation, Teacher } from '@/lib/data';
+import type { Violation, Teacher, ViolationType } from '@/lib/data';
 
 const formSchema = z.object({
     jenis_pelanggaran: z.string().min(1, 'Jenis pelanggaran harus diisi.'),
@@ -36,6 +36,7 @@ const formSchema = z.object({
         (val) => (val === '' || val === undefined ? undefined : Number(val)),
         z.number().int().min(1, 'Poin harus berupa angka positif.')
     ),
+    violationTypeId: z.string().optional(),
 });
 
 type ViolationLogFormProps = {
@@ -54,7 +55,7 @@ export function ViolationLogForm({ children, studentId, violation }: ViolationLo
 
     // Check user roles
     const userRole = session?.user?.jabatan;
-    // const canPerformActions = userRole === 'Admin' || userRole === 'Guru BK';
+    const canPerformActions = userRole === 'Admin' || userRole === 'Guru BK';
 
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
@@ -63,7 +64,8 @@ export function ViolationLogForm({ children, studentId, violation }: ViolationLo
             tanggal_terjadi: new Date(),
             catatan: '',
             guru_bk: '',
-            poin: undefined,
+            poin: 0,
+            violationTypeId: '',
         },
     });
 
@@ -74,15 +76,45 @@ export function ViolationLogForm({ children, studentId, violation }: ViolationLo
     );
     const bkTeachers = teachers?.filter((teacher) => teacher.jabatan === 'Guru BK') || [];
 
+    // Fetch violation types
+    const { data: violationTypes, isLoading: violationTypesLoading } = useSWR<ViolationType[]>(
+        '/api/violations-type',
+        fetcher
+    );
+
+    // Handle violation type selection
+    const handleViolationTypeChange = (value: string) => {
+        form.setValue('violationTypeId', value);
+
+        if (value) {
+            const selectedType = violationTypes?.find((type) => type.id.toString() === value);
+            if (selectedType) {
+                form.setValue('jenis_pelanggaran', selectedType.nama_pelanggaran);
+                form.setValue('poin', selectedType.poin);
+            }
+        } else {
+            form.setValue('jenis_pelanggaran', '');
+            form.setValue('poin', 0);
+        }
+    };
+
     useEffect(() => {
         if (open) {
             if (isEditMode && violation) {
+                // Find violation type by name and points to preselect
+                const matchingType = violationTypes?.find(
+                    (type) =>
+                        type.nama_pelanggaran === violation.jenis_pelanggaran &&
+                        type.poin === violation.poin
+                );
+
                 form.reset({
                     jenis_pelanggaran: violation.jenis_pelanggaran,
                     tanggal_terjadi: new Date(violation.tanggal_terjadi),
                     catatan: violation.catatan,
                     guru_bk: violation.guru_bk,
                     poin: violation.poin,
+                    violationTypeId: matchingType ? matchingType.id.toString() : '',
                 });
             } else {
                 form.reset({
@@ -91,18 +123,20 @@ export function ViolationLogForm({ children, studentId, violation }: ViolationLo
                     catatan: '',
                     guru_bk: '',
                     poin: undefined,
+                    violationTypeId: '',
                 });
             }
         }
-    }, [open, isEditMode, violation, form]);
+    }, [open, isEditMode, violation, violationTypes, form]);
 
     async function onSubmit(values: z.infer<typeof formSchema>) {
         setIsLoading(true);
         try {
-            const endpoint = isEditMode ? `/api/violations-log/${violation?.id}` : '/api/violations-log';
+            const endpoint = isEditMode ? '/api/violations-log' : '/api/violations-log';
             const method = isEditMode ? 'PUT' : 'POST';
 
             const body = {
+                id: isEditMode ? violation?.id : undefined,
                 nis_siswa: studentId,
                 jenis_pelanggaran: values.jenis_pelanggaran,
                 tanggal_terjadi: values.tanggal_terjadi.toISOString().split('T')[0],
@@ -175,6 +209,37 @@ export function ViolationLogForm({ children, studentId, violation }: ViolationLo
                 </DialogHeader>
                 <Form {...form}>
                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                        <FormField
+                            control={form.control}
+                            name="violationTypeId"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Tipe Pelanggaran (Opsional)</FormLabel>
+                                    <Select
+                                        onValueChange={handleViolationTypeChange}
+                                        value={field.value}
+                                        disabled={violationTypesLoading}
+                                    >
+                                        <FormControl>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Pilih tipe pelanggaran" />
+                                            </SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent>
+                                            {violationTypes?.map((type) => (
+                                                <SelectItem
+                                                    key={type.id}
+                                                    value={type.id.toString()}
+                                                >
+                                                    {type.nama_pelanggaran} (+{type.poin} poin)
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
                         <FormField
                             control={form.control}
                             name="jenis_pelanggaran"
