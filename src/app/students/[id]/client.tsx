@@ -31,6 +31,9 @@ import {
 import { DeleteConfirmationDialog } from '@/components/delete-confirmation-dialog';
 import useSWR from 'swr';
 import { fetcher } from '@/lib/fetcher';
+import { useToast } from '@/hooks/use-toast';
+import { useSession } from 'next-auth/react';
+import { ViolationLogForm } from '@/components/violation-log-form';
 
 type StudentProfileClientProps = {
     id: string;
@@ -128,10 +131,16 @@ function SanctionsCard({ studentId }: { studentId: string | undefined }) {
 
 // Komponen StudentProfileClient
 export function StudentProfileClient({ id }: StudentProfileClientProps) {
-    const { data: student, error: studentError, isLoading: studentLoading } = useSWR<Student>(`/api/students/${id}`, fetcher);
+    const { data: student, error: studentError, isLoading: studentLoading, mutate } = useSWR<Student>(`/api/students/${id}`, fetcher);
     const { data: studentViolations, error: studentViolationsError, isLoading: violationsLoading } = useSWR<Violation[]>(`/api/violations-log/${id}`, fetcher);
+    const { toast } = useToast();
+    const { data: session } = useSession();
     
     const [currentPage, setCurrentPage] = useState(1); 
+
+    // Check user roles
+    const userRole = session?.user?.jabatan;
+    const canPerformDelete = userRole === 'Admin' || userRole === 'Guru BK';
 
     // 🚨 PERBAIKAN: Menambahkan guard clause untuk menghindari error saat data undefined
     const violations = studentViolations || [];
@@ -148,8 +157,44 @@ export function StudentProfileClient({ id }: StudentProfileClientProps) {
         setCurrentPage((prev) => Math.min(prev + 1, totalPages));
     };
 
-    const handleDelete = (violationId: string) => {
-        console.log(`Deleting violation with id: ${violationId}`);
+    const handleDelete = async (violationId: number) => {
+        // Check if user has permission to delete
+        if (!canPerformDelete) {
+            toast({
+                title: 'Akses Ditolak',
+                description: 'Hanya admin dan guru BK yang dapat menghapus pelanggaran.',
+                variant: 'destructive',
+            });
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/violations-log/${violationId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (!response.ok) {
+                const data = await response.json();
+                throw new Error(data.message || 'Gagal menghapus pelanggaran.');
+            }
+
+            toast({
+                title: 'Sukses',
+                description: 'Pelanggaran berhasil dihapus.',
+            });
+
+            // Refresh the violations data
+            mutate();
+        } catch (error) {
+            toast({
+                title: 'Gagal',
+                description: error instanceof Error ? error.message : 'Terjadi kesalahan saat menghapus pelanggaran.',
+                variant: 'destructive',
+            });
+        }
     };
 
     const totalPoints = student?.total_poin;
@@ -219,10 +264,12 @@ export function StudentProfileClient({ id }: StudentProfileClientProps) {
             </div>
 
             <div className="flex justify-start">
-                <Button>
-                    <PlusCircle className="mr-2 h-4 w-4" />
-                    Catat Pelanggaran
-                </Button>
+                <ViolationLogForm studentId={id}>
+                    <Button>
+                        <PlusCircle className="mr-2 h-4 w-4" />
+                        Catat Pelanggaran
+                    </Button>
+                </ViolationLogForm>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -254,7 +301,7 @@ export function StudentProfileClient({ id }: StudentProfileClientProps) {
                                             currentViolations.map((v) => (
                                                 <TableRow key={v.id}>
                                                     <TableCell>
-                                                        {new Date(v.tanggal_terjadi).toLocaleDateString()}
+                                                        {new Date(v.tanggal_terjadi).toLocaleDateString('id-ID')}
                                                     </TableCell>
                                                     <TableCell>
                                                         <Badge variant="secondary">{v.jenis_pelanggaran}</Badge>
@@ -283,30 +330,32 @@ export function StudentProfileClient({ id }: StudentProfileClientProps) {
                                                                 </Button>
                                                             </DropdownMenuTrigger>
                                                             <DropdownMenuContent align="end">
-                                                                {/* <ViolationForm
+                                                                <ViolationLogForm
                                                                     violation={v}
-                                                                    studentId={student.id}
-                                                                > */}
-                                                                <DropdownMenuItem
-                                                                    onSelect={(e) =>
-                                                                        e.preventDefault()
-                                                                    }
-                                                                >
-                                                                    Edit
-                                                                </DropdownMenuItem>
-                                                                {/* </ViolationForm> */}
-                                                                <DeleteConfirmationDialog
-                                                                    onConfirm={() => handleDelete(v.id.toString())}
+                                                                    studentId={id}
                                                                 >
                                                                     <DropdownMenuItem
                                                                         onSelect={(e) =>
                                                                             e.preventDefault()
                                                                         }
-                                                                        className="text-destructive focus:text-destructive"
                                                                     >
-                                                                        Hapus
+                                                                        Edit
                                                                     </DropdownMenuItem>
-                                                                </DeleteConfirmationDialog>
+                                                                </ViolationLogForm>
+                                                                {canPerformDelete && (
+                                                                    <DeleteConfirmationDialog
+                                                                        onConfirm={() => handleDelete(v.id)}
+                                                                    >
+                                                                        <DropdownMenuItem
+                                                                            onSelect={(e) =>
+                                                                                e.preventDefault()
+                                                                            }
+                                                                            className="text-destructive focus:text-destructive"
+                                                                        >
+                                                                            Hapus
+                                                                        </DropdownMenuItem>
+                                                                    </DeleteConfirmationDialog>
+                                                                )}
                                                             </DropdownMenuContent>
                                                         </DropdownMenu>
                                                     </TableCell>
