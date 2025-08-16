@@ -66,7 +66,7 @@ export async function POST(req: NextRequest) {
 
         if (!response.ok) {
             return NextResponse.json(
-                { message: data.message || 'Failed to add student' },
+                { message: data.msg || 'Failed to add student' },
                 { status: response.status }
             );
         }

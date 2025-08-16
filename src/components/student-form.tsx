@@ -72,13 +72,16 @@ export function StudentForm({ children, student, classOpt }: StudentFormProps) {
     async function onSubmit(values: z.infer<typeof formSchema>) {
         setIsLoading(true);
         try {
-            const response = await fetch(isEditMode ? `/api/students/${student?.nis}` : '/api/students', {
-                method: isEditMode ? 'PUT' : 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(values),
-            });
+            const response = await fetch(
+                isEditMode ? `/api/students/${student?.nis}` : '/api/students',
+                {
+                    method: isEditMode ? 'PUT' : 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(values),
+                }
+            );
 
             if (!response.ok) {
                 const data = await response.json();
@@ -96,7 +99,8 @@ export function StudentForm({ children, student, classOpt }: StudentFormProps) {
         } catch (error) {
             toast({
                 title: 'Gagal',
-                description: (error as Error).message || 'Terjadi kesalahan saat menyimpan data siswa.',
+                description:
+                    (error as Error).message || 'Terjadi kesalahan saat menyimpan data siswa.',
                 variant: 'destructive',
             });
         } finally {
@@ -186,7 +190,16 @@ export function StudentForm({ children, student, classOpt }: StudentFormProps) {
                             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
                                 Batal
                             </Button>
-                            <Button type="submit" disabled={isLoading}>{isLoading ? <Loader2 className='h-6 w-6 animate-spin text-white mx-auto' /> : 'Simpan'}</Button>
+                            <Button type="submit" disabled={isLoading}>
+                                {isLoading ? (
+                                    <>
+                                        <Loader2 className="h-6 w-6 animate-spin text-white mx-auto" />
+                                        Menyimpan...
+                                    </>
+                                ) : (
+                                    'Simpan'
+                                )}
+                            </Button>
                         </DialogFooter>
                     </form>
                 </Form>
