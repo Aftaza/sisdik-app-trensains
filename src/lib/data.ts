@@ -6,7 +6,7 @@ export type Student = {
 };
 
 export type Violation = {
-    id: string;
+    id: number;
     studentId: string;
     studentName: string;
     studentNis: string;
@@ -26,7 +26,7 @@ export type Teacher = {
 };
 
 export type ViolationType = {
-    id: string;
+    id: number;
     nama_pelanggaran: string;
     kategori: string;
     pembuat: string;
@@ -34,19 +34,19 @@ export type ViolationType = {
 };
 
 export type Sanction = {
-    id: string;
+    id: number;
     pembinaan: string;
     start_poin: number;
     end_poin: number;
 };
 
-export const students: Student[] = [
-    { nama_lengkap: 'Budi Santoso', nis: 12345, kelas: 'XII-A', total_poin: 120 },
-    { nama_lengkap: 'Citra Lestari', nis: 12346, kelas: 'XII-B', total_poin: 95 },
-    { nama_lengkap: 'Agus Wijaya', nis: 12347, kelas: 'XI-A', total_poin: 70 },
-    { nama_lengkap: 'Dewi Anggraini', nis: 12348, kelas: 'XI-C', total_poin: 50 },
-    { nama_lengkap: 'Eko Prasetyo', nis: 12349, kelas: 'X-B', total_poin: 30 },
-];
+// export const students: Student[] = [
+//     { nama_lengkap: 'Budi Santoso', nis: 12345, kelas: 'XII-A', total_poin: 120 },
+//     { nama_lengkap: 'Citra Lestari', nis: 12346, kelas: 'XII-B', total_poin: 95 },
+//     { nama_lengkap: 'Agus Wijaya', nis: 12347, kelas: 'XI-A', total_poin: 70 },
+//     { nama_lengkap: 'Dewi Anggraini', nis: 12348, kelas: 'XI-C', total_poin: 50 },
+//     { nama_lengkap: 'Eko Prasetyo', nis: 12349, kelas: 'X-B', total_poin: 30 },
+// ];
 
 // export const teachers: Teacher[] = [
 //     { id: 't1', name: 'Dr. Anisa Rahmawati', email: 'anisa.r@sekolah.id', role: 'Kepala Sekolah' },
@@ -55,68 +55,68 @@ export const students: Student[] = [
 //     { id: 't4', name: 'Ahmad Fauzi', email: 'ahmad.f@sekolah.id', role: 'Wali Kelas' },
 // ];
 
-export const violations: Violation[] = [
-    {
-        id: 'v1',
-        studentId: '1',
-        studentName: 'Budi Santoso',
-        studentNis: '12345',
-        type: 'Bullying',
-        date: '2024-07-20',
-        notes: 'Mengganggu siswa lain saat istirahat.',
-        reporter: 'Bambang Supriadi',
-        counselor: 'Siti Nurhaliza',
-        points: 20,
-    },
-    {
-        id: 'v2',
-        studentId: '2',
-        studentName: 'Citra Lestari',
-        studentNis: '12346',
-        type: 'Tardiness',
-        date: '2024-07-19',
-        notes: 'Terlambat masuk sekolah 15 menit.',
-        reporter: 'Ahmad Fauzi',
-        counselor: 'Siti Nurhaliza',
-        points: 5,
-    },
-    {
-        id: 'v3',
-        studentId: '1',
-        studentName: 'Budi Santoso',
-        studentNis: '12345',
-        type: 'Cheating',
-        date: '2024-07-18',
-        notes: 'Menyontek saat ujian matematika.',
-        reporter: 'Bambang Supriadi',
-        counselor: 'Siti Nurhaliza',
-        points: 50,
-    },
-    {
-        id: 'v4',
-        studentId: '3',
-        studentName: 'Agus Wijaya',
-        studentNis: '12347',
-        type: 'Disrespect',
-        date: '2024-07-18',
-        notes: 'Tidak sopan kepada guru.',
-        reporter: 'Ahmad Fauzi',
-        counselor: 'Siti Nurhaliza',
-        points: 15,
-    },
-    {
-        id: 'v5',
-        studentId: '4',
-        studentName: 'Dewi Anggraini',
-        studentNis: '12348',
-        type: 'Vandalism',
-        date: '2024-07-17',
-        notes: 'Mencoret-coret meja di kelas.',
-        reporter: 'Bambang Supriadi',
-        counselor: 'Siti Nurhaliza',
-        points: 25,
-    },
-];
+// export const violations: Violation[] = [
+//     {
+//         id: 'v1',
+//         studentId: '1',
+//         studentName: 'Budi Santoso',
+//         studentNis: '12345',
+//         type: 'Bullying',
+//         date: '2024-07-20',
+//         notes: 'Mengganggu siswa lain saat istirahat.',
+//         reporter: 'Bambang Supriadi',
+//         counselor: 'Siti Nurhaliza',
+//         points: 20,
+//     },
+//     {
+//         id: 'v2',
+//         studentId: '2',
+//         studentName: 'Citra Lestari',
+//         studentNis: '12346',
+//         type: 'Tardiness',
+//         date: '2024-07-19',
+//         notes: 'Terlambat masuk sekolah 15 menit.',
+//         reporter: 'Ahmad Fauzi',
+//         counselor: 'Siti Nurhaliza',
+//         points: 5,
+//     },
+//     {
+//         id: 'v3',
+//         studentId: '1',
+//         studentName: 'Budi Santoso',
+//         studentNis: '12345',
+//         type: 'Cheating',
+//         date: '2024-07-18',
+//         notes: 'Menyontek saat ujian matematika.',
+//         reporter: 'Bambang Supriadi',
+//         counselor: 'Siti Nurhaliza',
+//         points: 50,
+//     },
+//     {
+//         id: 'v4',
+//         studentId: '3',
+//         studentName: 'Agus Wijaya',
+//         studentNis: '12347',
+//         type: 'Disrespect',
+//         date: '2024-07-18',
+//         notes: 'Tidak sopan kepada guru.',
+//         reporter: 'Ahmad Fauzi',
+//         counselor: 'Siti Nurhaliza',
+//         points: 15,
+//     },
+//     {
+//         id: 'v5',
+//         studentId: '4',
+//         studentName: 'Dewi Anggraini',
+//         studentNis: '12348',
+//         type: 'Vandalism',
+//         date: '2024-07-17',
+//         notes: 'Mencoret-coret meja di kelas.',
+//         reporter: 'Bambang Supriadi',
+//         counselor: 'Siti Nurhaliza',
+//         points: 25,
+//     },
+// ];
 
 
 

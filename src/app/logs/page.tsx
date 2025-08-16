@@ -33,10 +33,37 @@ interface Violation {
 const ROWS_PER_PAGE = 10;
 
 export default function ViolationLogsPage() {
-    const { data: violations, error } = useSWR<Violation[]>('/api/violations-log', fetcher);
+    const { data: violations, error, mutate } = useSWR<Violation[]>('/api/violations-log', fetcher);
     const [currentPage, setCurrentPage] = useState(1);
 
-    if (error) return <div>Failed to load violations</div>;
+    if (error) {
+        return (
+            <RootLayout>
+                <div className="flex flex-col gap-4">
+                    <div className="flex items-center justify-between">
+                        <h1 className="text-3xl font-bold font-headline">Log Pelanggaran</h1>
+                    </div>
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Semua Catatan Pelanggaran</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-center py-10">
+                                <p className="text-red-500">Gagal memuat data. Silakan coba lagi.</p>
+                                <Button 
+                                    variant="outline" 
+                                    className="mt-4"
+                                    onClick={() => mutate()}
+                                >
+                                    Muat Ulang
+                                </Button>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+            </RootLayout>
+        );
+    }
 
     const totalPages = violations && violations.length > 0 ? Math.ceil(violations.length / ROWS_PER_PAGE) : 0;
     const startIndex = (currentPage - 1) * ROWS_PER_PAGE;

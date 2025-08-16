@@ -46,11 +46,11 @@ export default function TeachersPage() {
                 <RootLayout>
                     <div className="flex flex-col gap-4">
                         <div className="flex items-center justify-between">
-                            <h1 className="text-3xl font-bold font-headline">Tipe Pelanggaran</h1>
+                            <h1 className="text-3xl font-bold font-headline">Daftar Guru</h1>
                         </div>
                         <Card>
                             <CardHeader>
-                                <CardTitle>Daftar Tipe Pelanggaran</CardTitle>
+                                <CardTitle>Semua Guru</CardTitle>
                             </CardHeader>
                             <CardContent>
                                 <div className="text-center py-10">
