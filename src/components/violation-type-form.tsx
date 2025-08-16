@@ -18,19 +18,14 @@ import { Input } from './ui/input';
 import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import type { ViolationType, Teacher } from '@/lib/data';
-import useSWR from 'swr';
-import { fetcher } from '@/lib/fetcher';
+import type { ViolationType } from '@/lib/data';
 import { useSession } from 'next-auth/react';
+import { Loader2 } from 'lucide-react';
 
 const formSchema = z.object({
     name: z.string().min(3, 'Nama pelanggaran harus diisi minimal 3 karakter.'),
     category: z.string().min(1, 'Kategori harus dipilih.'),
-    start_point: z.coerce.number().min(0, 'Poin awal harus diisi dan tidak boleh negatif.'),
-    end_point: z.coerce.number().min(0, 'Poin akhir harus diisi dan tidak boleh negatif.'),
-}).refine((data) => data.end_point >= data.start_point, {
-    message: 'Poin akhir harus lebih besar atau sama dengan poin awal.',
-    path: ['end_point'],
+    points: z.coerce.number().min(1, 'Poin harus diisi dan lebih dari 0.'),
 });
 
 type ViolationTypeFormProps = {
@@ -43,20 +38,17 @@ const categoryOptions = ['Ringan', 'Sedang', 'Berat', 'Meninggalkan Kewajiban'];
 
 export function ViolationTypeForm({ children, violationType, onSuccess }: ViolationTypeFormProps) {
     const [open, setOpen] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const { toast } = useToast();
     const { data: session } = useSession();
     const isEditMode = !!violationType;
-    const { data: teachers, isLoading } = useSWR<Teacher[]>('/api/teachers', fetcher);
-
-    const creatorOptions = teachers?.map((teacher: Teacher) => ({ value: teacher.nama, label: teacher.nama }));
 
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
         defaultValues: {
             name: '',
             category: '',
-            start_point: 0,
-            end_point: 0,
+            points: 0,
         },
     });
 
@@ -65,21 +57,20 @@ export function ViolationTypeForm({ children, violationType, onSuccess }: Violat
             form.reset({
                 name: violationType.nama_pelanggaran,
                 category: violationType.kategori,
-                start_point: violationType.poin || 0,
-                end_point: violationType.poin || 0,
+                points: violationType.poin || 0,
             });
         } else {
             form.reset({
                 name: '',
                 category: '',
-                start_point: 0,
-                end_point: 0,
+                points: 0,
             });
         }
     }, [isEditMode, violationType, form, open]);
 
     async function onSubmit(values: z.infer<typeof formSchema>) {
         try {
+            setIsSubmitting(true);
             // Get the creator name from session
             const creatorName = session?.user?.nama || 'Unknown';
             
@@ -95,8 +86,7 @@ export function ViolationTypeForm({ children, violationType, onSuccess }: Violat
                     body: JSON.stringify({
                         nama_pelanggaran: values.name,
                         kategori: values.category,
-                        start_point: values.start_point,
-                        end_point: values.end_point,
+                        poin: values.points,
                         pembuat: creatorName,
                     }),
                 });
@@ -110,8 +100,7 @@ export function ViolationTypeForm({ children, violationType, onSuccess }: Violat
                     body: JSON.stringify({
                         nama_pelanggaran: values.name,
                         kategori: values.category,
-                        start_point: values.start_point,
-                        end_point: values.end_point,
+                        poin: values.points,
                         pembuat: creatorName,
                     }),
                 });
@@ -137,6 +126,8 @@ export function ViolationTypeForm({ children, violationType, onSuccess }: Violat
                 description: error instanceof Error ? error.message : 'Terjadi kesalahan tidak terduga',
                 variant: 'destructive',
             });
+        } finally {
+            setIsSubmitting(false);
         }
     }
 
@@ -198,34 +189,19 @@ export function ViolationTypeForm({ children, violationType, onSuccess }: Violat
                                 </FormItem>
                             )}
                         />
-                        <div className="grid grid-cols-2 gap-4">
-                            <FormField
-                                control={form.control}
-                                name="start_point"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Poin Awal</FormLabel>
-                                        <FormControl>
-                                            <Input type="number" placeholder="Contoh: 1" {...field} />
-                                        </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                            <FormField
-                                control={form.control}
-                                name="end_point"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Poin Akhir</FormLabel>
-                                        <FormControl>
-                                            <Input type="number" placeholder="Contoh: 5" {...field} />
-                                        </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                        </div>
+                        <FormField
+                            control={form.control}
+                            name="points"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Poin Pelanggaran</FormLabel>
+                                    <FormControl>
+                                        <Input type="number" placeholder="Contoh: 5" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
                         <div className="space-y-2">
                             <FormLabel>Dibuat Oleh</FormLabel>
                             <div className="rounded-md border border-input px-3 py-2 text-sm">
@@ -233,10 +209,19 @@ export function ViolationTypeForm({ children, violationType, onSuccess }: Violat
                             </div>
                         </div>
                         <DialogFooter>
-                            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                            <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={isSubmitting}>
                                 Batal
                             </Button>
-                            <Button type="submit">Simpan</Button>
+                            <Button type="submit" disabled={isSubmitting}>
+                                {isSubmitting ? (
+                                    <>
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                        Menyimpan...
+                                    </>
+                                ) : (
+                                    'Simpan'
+                                )}
+                            </Button>
                         </DialogFooter>
                     </form>
                 </Form>

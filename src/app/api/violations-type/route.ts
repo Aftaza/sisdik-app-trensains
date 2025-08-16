@@ -53,10 +53,7 @@ export async function POST(req: NextRequest) {
         }
 
         const body = await req.json();
-
-        // Calculate average point from start_point and end_point
-        const averagePoint = Math.round((body.start_point + body.end_point) / 2);
-
+        console.log(body);
         const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/add-violation-type`, {
             method: 'POST',
             headers: {
@@ -66,10 +63,7 @@ export async function POST(req: NextRequest) {
             body: JSON.stringify({
                 nama_pelanggaran: body.nama_pelanggaran,
                 kategori: body.kategori,
-                start_point: body.start_point,
-                end_point: body.end_point,
-                poin: averagePoint, // For backward compatibility with existing data structure
-                pembuat: token.nama, // Get creator name from token
+                poin: body.poin,
             }),
         });
 
