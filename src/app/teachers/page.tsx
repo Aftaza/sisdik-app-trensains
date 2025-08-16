@@ -41,7 +41,17 @@ export default function TeachersPage() {
     // Check if user has permission to add/edit/delete teachers
     const hasPermission = session?.user?.jabatan === 'Admin' || session?.user?.jabatan === 'Guru BK';
 
-    if (error) return <div>Failed to load teachers</div>;
+    if (error) {
+        return (
+                <RootLayout>
+                    <div className="flex flex-col gap-4 p-4">
+                        <p className="text-center text-muted-foreground">
+                            Failed to load data teacher.
+                        </p>
+                    </div>
+                </RootLayout>
+            );
+    }
 
     const totalPages = Math.ceil((teachers || []).length / ROWS_PER_PAGE);
     const startIndex = (currentPage - 1) * ROWS_PER_PAGE;
