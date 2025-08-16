@@ -15,7 +15,7 @@ import {
 import type { ViolationType } from '@/lib/data';
 import { Badge } from '@/components/ui/badge';
 import { useState } from 'react';
-// import { ViolationTypeForm } from '@/components/violation-type-form';
+import { ViolationTypeForm } from '@/components/violation-type-form';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -26,12 +26,20 @@ import { DeleteConfirmationDialog } from '@/components/delete-confirmation-dialo
 import useSWR from 'swr';
 import { fetcher } from '@/lib/fetcher';
 import { cn } from '@/lib/utils';
+import { useSession } from 'next-auth/react';
+import { useToast } from '@/hooks/use-toast';
 
 const ROWS_PER_PAGE = 10;
 
 export default function ViolationTypesPage() {
     const [currentPage, setCurrentPage] = useState(1);
-    const { data, error, isLoading } = useSWR('/api/violations-type', fetcher);
+    const { data, error, isLoading, mutate } = useSWR('/api/violations-type', fetcher);
+    const { data: session } = useSession();
+    const { toast } = useToast();
+
+    // Check if user has admin or BK teacher role
+    const userRole = session?.user?.jabatan;
+    const canPerformActions = userRole === 'admin' || userRole === 'guru_bk';
 
     const totalPages = data && data.length > 0 ? Math.ceil(data.length / ROWS_PER_PAGE) : 0;
     const startIndex = (currentPage - 1) * ROWS_PER_PAGE;
@@ -46,9 +54,36 @@ export default function ViolationTypesPage() {
         setCurrentPage((prev) => Math.min(prev + 1, totalPages));
     };
 
-    const handleDelete = (violationTypeId: string) => {
-        console.log(`Deleting violation type with id: ${violationTypeId}`);
-        // Implement deletion logic here
+    const handleDelete = async (violationTypeId: string) => {
+        try {
+            const response = await fetch(`/api/violation-type/${violationTypeId}`, {
+                method: 'DELETE',
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Gagal menghapus tipe pelanggaran');
+            }
+
+            // Revalidate the data
+            mutate();
+            
+            toast({
+                title: 'Sukses',
+                description: 'Tipe pelanggaran berhasil dihapus.',
+            });
+        } catch (error) {
+            toast({
+                title: 'Error',
+                description: error instanceof Error ? error.message : 'Terjadi kesalahan tidak terduga',
+                variant: 'destructive',
+            });
+        }
+    };
+
+    const handleSuccess = () => {
+        // Revalidate the data
+        mutate();
     };
 
     return (
@@ -56,12 +91,14 @@ export default function ViolationTypesPage() {
             <div className="flex flex-col gap-4">
                 <div className="flex items-center justify-between">
                     <h1 className="text-3xl font-bold font-headline">Tipe Pelanggaran</h1>
-                    {/* <ViolationTypeForm> */}
-                        <Button>
-                            <PlusCircle />
-                            Tambah Tipe
-                        </Button>
-                    {/* </ViolationTypeForm> */}
+                    {canPerformActions && (
+                        <ViolationTypeForm onSuccess={handleSuccess}>
+                            <Button>
+                                <PlusCircle className="mr-2 h-4 w-4" />
+                                Tambah Tipe
+                            </Button>
+                        </ViolationTypeForm>
+                    )}
                 </div>
                 <Card>
                     <CardHeader>
@@ -75,22 +112,24 @@ export default function ViolationTypesPage() {
                                     <TableHead>Kategori</TableHead>
                                     <TableHead>Poin</TableHead>
                                     <TableHead>Dibuat Oleh</TableHead>
-                                    <TableHead>
-                                        <span className="sr-only">Aksi</span>
-                                    </TableHead>
+                                    {canPerformActions && (
+                                        <TableHead>
+                                            <span className="sr-only">Aksi</span>
+                                        </TableHead>
+                                    )}
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {isLoading ? (
                                     <TableRow>
-                                        <TableCell colSpan={5} className="text-center py-10">
+                                        <TableCell colSpan={canPerformActions ? 5 : 4} className="text-center py-10">
                                             <Loader2 className="h-6 w-6 animate-spin text-primary mx-auto" />
                                             <p className="mt-2">Memuat data tipe pelanggaran...</p>
                                         </TableCell>
                                     </TableRow>
                                 ) : currentViolationTypes.length === 0 ? (
                                     <TableRow>
-                                        <TableCell colSpan={5} className="text-center py-10">
+                                        <TableCell colSpan={canPerformActions ? 5 : 4} className="text-center py-10">
                                             Tidak ada data tipe pelanggaran.
                                         </TableCell>
                                     </TableRow>
@@ -120,39 +159,44 @@ export default function ViolationTypesPage() {
                                                 <Badge variant="destructive">{type.poin}</Badge>
                                             </TableCell>
                                             <TableCell>{type.pembuat}</TableCell>
-                                            <TableCell>
-                                                <DropdownMenu>
-                                                    <DropdownMenuTrigger asChild>
-                                                        <Button
-                                                            aria-haspopup="true"
-                                                            size="icon"
-                                                            variant="ghost"
-                                                        >
-                                                            <MoreVertical className="h-4 w-4" />
-                                                            <span className="sr-only">Toggle menu</span>
-                                                        </Button>
-                                                    </DropdownMenuTrigger>
-                                                    <DropdownMenuContent align="end">
-                                                        {/* <ViolationTypeForm violationType={type}> */}
-                                                            <DropdownMenuItem
-                                                                onSelect={(e) => e.preventDefault()}
+                                            {canPerformActions && (
+                                                <TableCell>
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger asChild>
+                                                            <Button
+                                                                aria-haspopup="true"
+                                                                size="icon"
+                                                                variant="ghost"
                                                             >
-                                                                Edit
-                                                            </DropdownMenuItem>
-                                                        {/* </ViolationTypeForm> */}
-                                                        <DeleteConfirmationDialog
-                                                            onConfirm={() => handleDelete(type.id)}
-                                                        >
-                                                            <DropdownMenuItem
-                                                                onSelect={(e) => e.preventDefault()}
-                                                                className="text-destructive focus:text-destructive"
+                                                                <MoreVertical className="h-4 w-4" />
+                                                                <span className="sr-only">Toggle menu</span>
+                                                            </Button>
+                                                        </DropdownMenuTrigger>
+                                                        <DropdownMenuContent align="end">
+                                                            <ViolationTypeForm 
+                                                                violationType={type} 
+                                                                onSuccess={handleSuccess}
                                                             >
-                                                                Hapus
-                                                            </DropdownMenuItem>
-                                                        </DeleteConfirmationDialog>
-                                                    </DropdownMenuContent>
-                                                </DropdownMenu>
-                                            </TableCell>
+                                                                <DropdownMenuItem
+                                                                    onSelect={(e) => e.preventDefault()}
+                                                                >
+                                                                    Edit
+                                                                </DropdownMenuItem>
+                                                            </ViolationTypeForm>
+                                                            <DeleteConfirmationDialog
+                                                                onConfirm={() => handleDelete(type.id)}
+                                                            >
+                                                                <DropdownMenuItem
+                                                                    onSelect={(e) => e.preventDefault()}
+                                                                    className="text-destructive focus:text-destructive"
+                                                                >
+                                                                    Hapus
+                                                                </DropdownMenuItem>
+                                                            </DeleteConfirmationDialog>
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
+                                                </TableCell>
+                                            )}
                                         </TableRow>
                                     ))
                                 )}
