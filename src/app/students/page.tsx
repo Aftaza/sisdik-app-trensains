@@ -49,7 +49,7 @@ const ROWS_PER_PAGE = 10;
 
 export default function StudentsPage() {
     const router = useRouter();
-    const { data: students, error } = useSWR<Student[]>('/api/students', fetcher);
+    const { data: students, error, isLoading } = useSWR<Student[]>('/api/students', fetcher);
     const [currentPage, setCurrentPage] = useState(1);
     const [classFilter, setClassFilter] = useState('Semua');
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc' | 'none'>('none');
@@ -135,8 +135,8 @@ export default function StudentsPage() {
             <div className="flex flex-col gap-4">
                 <div className="flex items-center justify-between">
                     <h1 className="text-3xl font-bold font-headline">Daftar Siswa</h1>
-                    <StudentForm>
-                        <Button>
+                    <StudentForm classOpt={classOptions}>
+                        <Button disabled={isLoading}>
                             <PlusCircle />
                             Tambah Siswa
                         </Button>
@@ -247,7 +247,7 @@ export default function StudentsPage() {
                                                         </Button>
                                                     </DropdownMenuTrigger>
                                                     <DropdownMenuContent align="end">
-                                                        <StudentForm student={student}>
+                                                        <StudentForm student={student} classOpt={classOptions}>
                                                             <DropdownMenuItem
                                                                 onSelect={(e) => e.preventDefault()}
                                                             >
