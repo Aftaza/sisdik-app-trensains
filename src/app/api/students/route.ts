@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
         const data = await response.json();
         if (!response.ok) {
             return NextResponse.json(
-                { message: data.msg || 'Failed to fetch students' },
+                { message: data.message || 'Failed to fetch students' },
                 { status: response.status }
             );
         }
@@ -35,6 +35,41 @@ export async function GET(req: NextRequest) {
                 siswa.total_poin = 0;
             }
         });
+
+        return NextResponse.json(data);
+    } catch (error) {
+        console.error(error);
+        return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
+    }
+}
+
+export async function POST(req: NextRequest) {
+    try {
+        const token = await getToken({ req, secret });
+
+        if (!token || !token.jwt) {
+            return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+        }
+
+        const body = await req.json();
+
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/add-student`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${token.jwt}`,
+            },
+            body: JSON.stringify(body),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            return NextResponse.json(
+                { message: data.message || 'Failed to add student' },
+                { status: response.status }
+            );
+        }
 
         return NextResponse.json(data);
     } catch (error) {

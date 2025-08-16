@@ -19,12 +19,14 @@ import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import type { Student } from '@/lib/data';
+import { useSWRConfig } from 'swr';
+import { Loader2 } from 'lucide-react';
 
 const formSchema = z.object({
     nama: z.string().min(3, 'Nama harus diisi minimal 3 karakter.'),
     nis: z
         .string()
-        .min(5, 'NIS harus diisi minimal 5 digit.')
+        .min(4, 'NIS harus diisi minimal 4 digit.')
         .regex(/^\d+$/, 'NIS hanya boleh berisi angka.'),
     kelas: z.string().min(1, 'Kelas harus dipilih.'),
 });
@@ -37,7 +39,9 @@ type StudentFormProps = {
 
 export function StudentForm({ children, student, classOpt }: StudentFormProps) {
     const [open, setOpen] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
     const { toast } = useToast();
+    const { mutate } = useSWRConfig();
     const isEditMode = !!student;
 
     const form = useForm<z.infer<typeof formSchema>>({
@@ -65,15 +69,39 @@ export function StudentForm({ children, student, classOpt }: StudentFormProps) {
         }
     }, [isEditMode, student, form, open]);
 
-    function onSubmit(values: z.infer<typeof formSchema>) {
-        console.log(values);
-        toast({
-            title: isEditMode ? 'Sukses' : 'Sukses',
-            description: isEditMode
-                ? `Data siswa "${values.nama}" berhasil diperbarui.`
-                : `Siswa baru "${values.nama}" berhasil ditambahkan.`,
-        });
-        setOpen(false);
+    async function onSubmit(values: z.infer<typeof formSchema>) {
+        setIsLoading(true);
+        try {
+            const response = await fetch(isEditMode ? `/api/students/${student?.nis}` : '/api/students', {
+                method: isEditMode ? 'PUT' : 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(values),
+            });
+
+            if (!response.ok) {
+                const data = await response.json();
+                throw new Error(data.message || 'Gagal menyimpan data siswa.');
+            }
+
+            toast({
+                title: 'Sukses',
+                description: isEditMode
+                    ? `Data siswa "${values.nama}" berhasil diperbarui.`
+                    : `Siswa baru "${values.nama}" berhasil ditambahkan.`,
+            });
+            mutate('/api/students');
+            setOpen(false);
+        } catch (error) {
+            toast({
+                title: 'Gagal',
+                description: (error as Error).message || 'Terjadi kesalahan saat menyimpan data siswa.',
+                variant: 'destructive',
+            });
+        } finally {
+            setIsLoading(false);
+        }
     }
 
     return (
@@ -120,7 +148,11 @@ export function StudentForm({ children, student, classOpt }: StudentFormProps) {
                                 <FormItem>
                                     <FormLabel>Nomor Induk Siswa (NIS)</FormLabel>
                                     <FormControl>
-                                        <Input placeholder="Contoh: 12345" {...field} />
+                                        <Input
+                                            placeholder="Contoh: 12345"
+                                            {...field}
+                                            disabled={isEditMode}
+                                        />
                                     </FormControl>
                                     <FormMessage />
                                 </FormItem>
@@ -139,7 +171,7 @@ export function StudentForm({ children, student, classOpt }: StudentFormProps) {
                                             </SelectTrigger>
                                         </FormControl>
                                         <SelectContent>
-                                            {classOpt?.slice(1).map((opt) => (
+                                            {classOpt?.map((opt) => (
                                                 <SelectItem key={opt} value={opt}>
                                                     {opt}
                                                 </SelectItem>
@@ -154,7 +186,7 @@ export function StudentForm({ children, student, classOpt }: StudentFormProps) {
                             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
                                 Batal
                             </Button>
-                            <Button type="submit">Simpan</Button>
+                            <Button type="submit" disabled={isLoading}>{isLoading ? <Loader2 className='h-6 w-6 animate-spin text-white mx-auto' /> : 'Simpan'}</Button>
                         </DialogFooter>
                     </form>
                 </Form>

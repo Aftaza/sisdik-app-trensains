@@ -40,6 +40,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { useToast } from '@/hooks/use-toast';
 import useSWR from 'swr';
 import { fetcher } from '@/lib/fetcher';
 import { cn } from '@/lib/utils';
@@ -49,10 +50,11 @@ const ROWS_PER_PAGE = 10;
 
 export default function StudentsPage() {
     const router = useRouter();
-    const { data: students, error, isLoading } = useSWR<Student[]>('/api/students', fetcher);
+    const { data: students, error, isLoading, mutate } = useSWR<Student[]>('/api/students', fetcher);
     const [currentPage, setCurrentPage] = useState(1);
     const [classFilter, setClassFilter] = useState('Semua');
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc' | 'none'>('none');
+    const { toast } = useToast();
 
     const classOptions = useMemo(() => {
         if (!students) {
@@ -105,9 +107,29 @@ export default function StudentsPage() {
         setCurrentPage((prev) => Math.min(prev + 1, totalPages));
     };
 
-    const handleDelete = (studentId: number) => {
-        console.log(`Deleting student with id: ${studentId}`);
-        // Implement deletion logic here
+    const handleDelete = async (studentId: number) => {
+        try {
+            const response = await fetch(`/api/students/${studentId}`, {
+                method: 'DELETE',
+            });
+
+            if (!response.ok) {
+                const data = await response.json();
+                throw new Error(typeof data === 'object' && data !== null && 'message' in data ? String(data.message) : 'Gagal menghapus data siswa.');
+            }
+
+            toast({
+                title: 'Sukses',
+                description: 'Data siswa berhasil dihapus.',
+            });
+            mutate();
+        } catch (error) {
+            toast({
+                title: 'Gagal',
+                description: (error as Error).message || 'Terjadi kesalahan saat menghapus data siswa.',
+                variant: 'destructive',
+            });
+        }
     };
 
     const toggleSortOrder = () => {
@@ -135,8 +157,8 @@ export default function StudentsPage() {
             <div className="flex flex-col gap-4">
                 <div className="flex items-center justify-between">
                     <h1 className="text-3xl font-bold font-headline">Daftar Siswa</h1>
-                    <StudentForm classOpt={classOptions}>
-                        <Button disabled={isLoading}>
+                    <StudentForm classOpt={classOptions.filter(opt => opt !== 'Semua')}>
+                        <Button disabled={isLoading || !classOptions || classOptions.length <= 1}>
                             <PlusCircle />
                             Tambah Siswa
                         </Button>
@@ -148,7 +170,7 @@ export default function StudentsPage() {
                         <div className="flex items-center justify-between">
                             <CardTitle>Semua Siswa</CardTitle>
                             <div className="flex items-center gap-2">
-                                <Select value={classFilter} onValueChange={setClassFilter}>
+                                <Select value={classFilter} onValueChange={setClassFilter} disabled={!classOptions || classOptions.length <= 1}>
                                     <SelectTrigger className="w-[180px]">
                                         <SelectValue placeholder="Filter per kelas" />
                                     </SelectTrigger>
@@ -247,7 +269,7 @@ export default function StudentsPage() {
                                                         </Button>
                                                     </DropdownMenuTrigger>
                                                     <DropdownMenuContent align="end">
-                                                        <StudentForm student={student} classOpt={classOptions}>
+                                                        <StudentForm student={student} classOpt={classOptions.filter(opt => opt !== 'Semua')}>
                                                             <DropdownMenuItem
                                                                 onSelect={(e) => e.preventDefault()}
                                                             >
