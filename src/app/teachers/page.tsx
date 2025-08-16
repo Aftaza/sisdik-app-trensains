@@ -32,7 +32,7 @@ import { useToast } from '@/hooks/use-toast';
 const ROWS_PER_PAGE = 10;
 
 export default function TeachersPage() {
-    const { data: teachers, error, isLoading } = useSWR<Teacher[]>('/api/teachers', fetcher);
+    const { data: teachers, error, isLoading, mutate } = useSWR<Teacher[]>('/api/teachers', fetcher);
     const { data: session } = useSession();
     const { toast } = useToast();
     const [currentPage, setCurrentPage] = useState(1);
@@ -44,10 +44,27 @@ export default function TeachersPage() {
     if (error) {
         return (
                 <RootLayout>
-                    <div className="flex flex-col gap-4 p-4">
-                        <p className="text-center text-muted-foreground">
-                            Failed to load data teacher.
-                        </p>
+                    <div className="flex flex-col gap-4">
+                        <div className="flex items-center justify-between">
+                            <h1 className="text-3xl font-bold font-headline">Tipe Pelanggaran</h1>
+                        </div>
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>Daftar Tipe Pelanggaran</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="text-center py-10">
+                                    <p className="text-red-500">Gagal memuat data. Silakan coba lagi.</p>
+                                    <Button 
+                                        variant="outline" 
+                                        className="mt-4"
+                                        onClick={() => mutate()}
+                                    >
+                                        Muat Ulang
+                                    </Button>
+                                </div>
+                            </CardContent>
+                        </Card>
                     </div>
                 </RootLayout>
             );
@@ -95,7 +112,7 @@ export default function TeachersPage() {
             });
 
             // Refresh the teachers data
-            mutate('/api/teachers');
+            mutate();
         } catch (error) {
             toast({
                 title: "Error",

@@ -97,10 +97,27 @@ export default function StudentsPage() {
     if (error) {
         return (
             <RootLayout>
-                <div className="flex flex-col gap-4 p-4">
-                    <p className="text-center text-muted-foreground">
-                        Failed to load data student.
-                    </p>
+                <div className="flex flex-col gap-4">
+                    <div className="flex items-center justify-between">
+                        <h1 className="text-3xl font-bold font-headline">Tipe Pelanggaran</h1>
+                    </div>
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Daftar Tipe Pelanggaran</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-center py-10">
+                                <p className="text-red-500">Gagal memuat data. Silakan coba lagi.</p>
+                                <Button 
+                                    variant="outline" 
+                                    className="mt-4"
+                                    onClick={() => mutate()}
+                                >
+                                    Muat Ulang
+                                </Button>
+                            </div>
+                        </CardContent>
+                    </Card>
                 </div>
             </RootLayout>
         );
