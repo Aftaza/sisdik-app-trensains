@@ -50,7 +50,12 @@ const ROWS_PER_PAGE = 10;
 
 export default function StudentsPage() {
     const router = useRouter();
-    const { data: students, error, isLoading, mutate } = useSWR<Student[]>('/api/students', fetcher);
+    const {
+        data: students,
+        error,
+        isLoading,
+        mutate,
+    } = useSWR<Student[]>('/api/students', fetcher);
     const [currentPage, setCurrentPage] = useState(1);
     const [classFilter, setClassFilter] = useState('Semua');
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc' | 'none'>('none');
@@ -60,10 +65,10 @@ export default function StudentsPage() {
         if (!students) {
             return ['Semua'];
         }
-        
+
         // Menggunakan Set untuk mendapatkan nilai kelas yang unik
-        const uniqueClasses = new Set(students.map(student => student.kelas));
-        
+        const uniqueClasses = new Set(students.map((student) => student.kelas));
+
         // Mengubah Set menjadi array dan menambahkan 'Semua' di awal
         return ['Semua', ...Array.from(uniqueClasses).sort()];
     }, [students]);
@@ -89,7 +94,17 @@ export default function StudentsPage() {
         return filtered;
     }, [students, classFilter, sortOrder]);
 
-    if (error) return <div>Failed to load students</div>;
+    if (error) {
+        return (
+            <RootLayout>
+                <div className="flex flex-col gap-4 p-4">
+                    <p className="text-center text-muted-foreground">
+                        Failed to load data student.
+                    </p>
+                </div>
+            </RootLayout>
+        );
+    }
 
     const totalPages =
         filteredAndSortedStudents.length === 0
@@ -115,7 +130,11 @@ export default function StudentsPage() {
 
             if (!response.ok) {
                 const data = await response.json();
-                throw new Error(typeof data === 'object' && data !== null && 'message' in data ? String(data.message) : 'Gagal menghapus data siswa.');
+                throw new Error(
+                    typeof data === 'object' && data !== null && 'message' in data
+                        ? String(data.message)
+                        : 'Gagal menghapus data siswa.'
+                );
             }
 
             toast({
@@ -126,7 +145,8 @@ export default function StudentsPage() {
         } catch (error) {
             toast({
                 title: 'Gagal',
-                description: (error as Error).message || 'Terjadi kesalahan saat menghapus data siswa.',
+                description:
+                    (error as Error).message || 'Terjadi kesalahan saat menghapus data siswa.',
                 variant: 'destructive',
             });
         }
@@ -157,7 +177,7 @@ export default function StudentsPage() {
             <div className="flex flex-col gap-4">
                 <div className="flex items-center justify-between">
                     <h1 className="text-3xl font-bold font-headline">Daftar Siswa</h1>
-                    <StudentForm classOpt={classOptions.filter(opt => opt !== 'Semua')}>
+                    <StudentForm classOpt={classOptions.filter((opt) => opt !== 'Semua')}>
                         <Button disabled={isLoading || !classOptions || classOptions.length <= 1}>
                             <PlusCircle />
                             Tambah Siswa
@@ -170,7 +190,11 @@ export default function StudentsPage() {
                         <div className="flex items-center justify-between">
                             <CardTitle>Semua Siswa</CardTitle>
                             <div className="flex items-center gap-2">
-                                <Select value={classFilter} onValueChange={setClassFilter} disabled={!classOptions || classOptions.length <= 1}>
+                                <Select
+                                    value={classFilter}
+                                    onValueChange={setClassFilter}
+                                    disabled={!classOptions || classOptions.length <= 1}
+                                >
                                     <SelectTrigger className="w-[180px]">
                                         <SelectValue placeholder="Filter per kelas" />
                                     </SelectTrigger>
@@ -250,7 +274,15 @@ export default function StudentsPage() {
                                                 }
                                                 className="text-center cursor-pointer"
                                             >
-                                                <Badge variant="destructive">
+                                                <Badge
+                                                    variant={
+                                                        student.total_poin === 0
+                                                            ? 'success'
+                                                            : student.total_poin > 0 && student.total_poin <= 50
+                                                            ? 'warning'
+                                                            : 'destructive'
+                                                    }
+                                                >
                                                     {student.total_poin} Poin
                                                 </Badge>
                                             </TableCell>
@@ -269,7 +301,12 @@ export default function StudentsPage() {
                                                         </Button>
                                                     </DropdownMenuTrigger>
                                                     <DropdownMenuContent align="end">
-                                                        <StudentForm student={student} classOpt={classOptions.filter(opt => opt !== 'Semua')}>
+                                                        <StudentForm
+                                                            student={student}
+                                                            classOpt={classOptions.filter(
+                                                                (opt) => opt !== 'Semua'
+                                                            )}
+                                                        >
                                                             <DropdownMenuItem
                                                                 onSelect={(e) => e.preventDefault()}
                                                             >

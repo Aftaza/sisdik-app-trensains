@@ -354,7 +354,13 @@ export default function DashboardPage() {
                                         </div>
                                         <div className="ml-auto font-medium text-right">
                                             <Badge
-                                                variant="destructive"
+                                                variant={
+                                                    student.total_poin === 0
+                                                            ? 'success'
+                                                            : student.total_poin > 0 && student.total_poin <= 50
+                                                            ? 'warning'
+                                                            : 'destructive'
+                                                }
                                                 className="whitespace-nowrap"
                                             >
                                                 {student.total_poin} Poin
