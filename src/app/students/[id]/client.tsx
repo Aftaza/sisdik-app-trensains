@@ -131,7 +131,7 @@ export function StudentProfileClient({ id }: StudentProfileClientProps) {
     const { data: student, error: studentError, isLoading: studentLoading } = useSWR<Student>(`/api/students/${id}`, fetcher);
     const { data: studentViolations, error: studentViolationsError, isLoading: violationsLoading } = useSWR<Violation[]>(`/api/violations-log/${id}`, fetcher);
     
-    const [currentPage, setCurrentPage] = useState(1);
+    const [currentPage, setCurrentPage] = useState(1); 
 
     // 🚨 PERBAIKAN: Menambahkan guard clause untuk menghindari error saat data undefined
     const violations = studentViolations || [];
@@ -240,7 +240,7 @@ export function StudentProfileClient({ id }: StudentProfileClientProps) {
                                 <Table>
                                     <TableHeader>
                                         <TableRow>
-                                            <TableHead>Tanggal</TableHead>
+                                            <TableHead>Tanggal Terjadi</TableHead>
                                             <TableHead>Jenis Pelanggaran</TableHead>
                                             <TableHead>Catatan</TableHead>
                                             <TableHead className="text-right">Poin</TableHead>
@@ -254,18 +254,18 @@ export function StudentProfileClient({ id }: StudentProfileClientProps) {
                                             currentViolations.map((v) => (
                                                 <TableRow key={v.id}>
                                                     <TableCell>
-                                                        {new Date(v.date).toLocaleDateString()}
+                                                        {new Date(v.tanggal_terjadi).toLocaleDateString()}
                                                     </TableCell>
                                                     <TableCell>
-                                                        <Badge variant="secondary">{v.type}</Badge>
+                                                        <Badge variant="secondary">{v.jenis_pelanggaran}</Badge>
                                                     </TableCell>
-                                                    <TableCell>{v.notes}</TableCell>
+                                                    <TableCell>{v.catatan}</TableCell>
                                                     <TableCell className="text-right font-medium">
                                                         <Badge
                                                             variant="destructive"
                                                             className="text-xs"
                                                         >
-                                                            +{v.points}
+                                                            +{v.poin}
                                                         </Badge>
                                                     </TableCell>
                                                     <TableCell>
@@ -296,7 +296,7 @@ export function StudentProfileClient({ id }: StudentProfileClientProps) {
                                                                 </DropdownMenuItem>
                                                                 {/* </ViolationForm> */}
                                                                 <DeleteConfirmationDialog
-                                                                    onConfirm={() => handleDelete(v.id)}
+                                                                    onConfirm={() => handleDelete(v.id.toString())}
                                                                 >
                                                                     <DropdownMenuItem
                                                                         onSelect={(e) =>

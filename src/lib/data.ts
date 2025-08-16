@@ -7,15 +7,15 @@ export type Student = {
 
 export type Violation = {
     id: number;
-    studentId: string;
-    studentName: string;
-    studentNis: string;
-    type: string;
-    date: string;
-    notes: string;
-    reporter: string;
-    counselor: string;
-    points: number;
+    nis_siswa: string;
+    nama_siswa: string;
+    jenis_pelanggaran: string;
+    catatan: string;
+    tanggal_terjadi: string;
+    tanggal_dicatat: string;
+    pelapor: string;
+    guru_bk: string;
+    poin?: number;
 };
 
 export type Teacher = {
