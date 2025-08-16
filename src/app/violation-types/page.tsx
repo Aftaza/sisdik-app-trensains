@@ -39,7 +39,7 @@ export default function ViolationTypesPage() {
 
     // Check if user has admin or BK teacher role
     const userRole = session?.user?.jabatan;
-    const canPerformActions = userRole === 'admin' || userRole === 'guru_bk';
+    const canPerformActions = userRole === 'Admin' || userRole === 'Guru BK';
 
     const totalPages = data && data.length > 0 ? Math.ceil(data.length / ROWS_PER_PAGE) : 0;
     const startIndex = (currentPage - 1) * ROWS_PER_PAGE;
@@ -56,8 +56,11 @@ export default function ViolationTypesPage() {
 
     const handleDelete = async (violationTypeId: string) => {
         try {
-            const response = await fetch(`/api/violation-type/${violationTypeId}`, {
+            const response = await fetch(`/api/violations-type/${violationTypeId}`, {
                 method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
             });
 
             if (!response.ok) {
@@ -78,6 +81,7 @@ export default function ViolationTypesPage() {
                 description: error instanceof Error ? error.message : 'Terjadi kesalahan tidak terduga',
                 variant: 'destructive',
             });
+            throw error;
         }
     };
 
@@ -85,6 +89,44 @@ export default function ViolationTypesPage() {
         // Revalidate the data
         mutate();
     };
+
+    // Error state
+    if (error) {
+        return (
+            <RootLayout>
+                <div className="flex flex-col gap-4">
+                    <div className="flex items-center justify-between">
+                        <h1 className="text-3xl font-bold font-headline">Tipe Pelanggaran</h1>
+                        {canPerformActions && (
+                            <ViolationTypeForm onSuccess={handleSuccess}>
+                                <Button>
+                                    <PlusCircle className="mr-2 h-4 w-4" />
+                                    Tambah Tipe
+                                </Button>
+                            </ViolationTypeForm>
+                        )}
+                    </div>
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Daftar Tipe Pelanggaran</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="text-center py-10">
+                                <p className="text-red-500">Gagal memuat data. Silakan coba lagi.</p>
+                                <Button 
+                                    variant="outline" 
+                                    className="mt-4"
+                                    onClick={() => mutate()}
+                                >
+                                    Muat Ulang
+                                </Button>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+            </RootLayout>
+        );
+    }
 
     return (
         <RootLayout>
@@ -110,7 +152,7 @@ export default function ViolationTypesPage() {
                                 <TableRow>
                                     <TableHead>Nama Pelanggaran</TableHead>
                                     <TableHead>Kategori</TableHead>
-                                    <TableHead>Poin</TableHead>
+                                    <TableHead className="text-center">Poin</TableHead>
                                     <TableHead>Dibuat Oleh</TableHead>
                                     {canPerformActions && (
                                         <TableHead>
@@ -123,14 +165,26 @@ export default function ViolationTypesPage() {
                                 {isLoading ? (
                                     <TableRow>
                                         <TableCell colSpan={canPerformActions ? 5 : 4} className="text-center py-10">
-                                            <Loader2 className="h-6 w-6 animate-spin text-primary mx-auto" />
-                                            <p className="mt-2">Memuat data tipe pelanggaran...</p>
+                                            <div className="flex flex-col items-center justify-center">
+                                                <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                                                <p className="mt-2">Memuat data tipe pelanggaran...</p>
+                                            </div>
                                         </TableCell>
                                     </TableRow>
                                 ) : currentViolationTypes.length === 0 ? (
                                     <TableRow>
                                         <TableCell colSpan={canPerformActions ? 5 : 4} className="text-center py-10">
-                                            Tidak ada data tipe pelanggaran.
+                                            <div className="flex flex-col items-center justify-center">
+                                                <p>Tidak ada data tipe pelanggaran.</p>
+                                                {canPerformActions && (
+                                                    <ViolationTypeForm onSuccess={handleSuccess}>
+                                                        <Button className="mt-4">
+                                                            <PlusCircle className="mr-2 h-4 w-4" />
+                                                            Tambah Tipe Pertama
+                                                        </Button>
+                                                    </ViolationTypeForm>
+                                                )}
+                                            </div>
                                         </TableCell>
                                     </TableRow>
                                 ) : (
@@ -155,8 +209,10 @@ export default function ViolationTypesPage() {
                                                     {type.kategori}
                                                 </Badge>
                                             </TableCell>
-                                            <TableCell>
-                                                <Badge variant="destructive">{type.poin}</Badge>
+                                            <TableCell className="text-center">
+                                                <Badge variant="destructive">
+                                                    {type.poin}
+                                                </Badge>
                                             </TableCell>
                                             <TableCell>{type.pembuat}</TableCell>
                                             {canPerformActions && (
@@ -205,7 +261,7 @@ export default function ViolationTypesPage() {
                     </CardContent>
                     <CardFooter className="flex items-center justify-between">
                         <span className="text-sm text-muted-foreground">
-                            Halaman {currentPage} dari {totalPages}
+                            Halaman {currentPage} dari {totalPages || 1}
                         </span>
                         <div className="flex items-center gap-2">
                             <Button

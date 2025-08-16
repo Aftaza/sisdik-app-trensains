@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
 
         // Check if user has admin or BK teacher role
         const userRole = token.jabatan;
-        if (userRole !== 'admin' && userRole !== 'guru_bk') {
+        if (userRole !== 'Admin' && userRole !== 'Guru BK') {
             return NextResponse.json(
                 { message: 'Forbidden: Only admin and BK teacher can perform this action' },
                 { status: 403 }
@@ -53,6 +53,9 @@ export async function POST(req: NextRequest) {
         }
 
         const body = await req.json();
+
+        // Calculate average point from start_point and end_point
+        const averagePoint = Math.round((body.start_point + body.end_point) / 2);
 
         const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/add-violation-type`, {
             method: 'POST',
@@ -65,7 +68,8 @@ export async function POST(req: NextRequest) {
                 kategori: body.kategori,
                 start_point: body.start_point,
                 end_point: body.end_point,
-                pembuat: body.pembuat,
+                poin: averagePoint, // For backward compatibility with existing data structure
+                pembuat: token.nama, // Get creator name from token
             }),
         });
 

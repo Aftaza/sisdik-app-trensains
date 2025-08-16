@@ -21,13 +21,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import type { ViolationType, Teacher } from '@/lib/data';
 import useSWR from 'swr';
 import { fetcher } from '@/lib/fetcher';
+import { useSession } from 'next-auth/react';
 
 const formSchema = z.object({
     name: z.string().min(3, 'Nama pelanggaran harus diisi minimal 3 karakter.'),
     category: z.string().min(1, 'Kategori harus dipilih.'),
     start_point: z.coerce.number().min(0, 'Poin awal harus diisi dan tidak boleh negatif.'),
     end_point: z.coerce.number().min(0, 'Poin akhir harus diisi dan tidak boleh negatif.'),
-    creator: z.string().min(1, 'Pembuat harus dipilih.'),
 }).refine((data) => data.end_point >= data.start_point, {
     message: 'Poin akhir harus lebih besar atau sama dengan poin awal.',
     path: ['end_point'],
@@ -39,11 +39,12 @@ type ViolationTypeFormProps = {
     onSuccess?: () => void;
 };
 
-const categoryOptions = ['Ringan', 'Sedang', 'Berat'];
+const categoryOptions = ['Ringan', 'Sedang', 'Berat', 'Meninggalkan Kewajiban'];
 
 export function ViolationTypeForm({ children, violationType, onSuccess }: ViolationTypeFormProps) {
     const [open, setOpen] = useState(false);
     const { toast } = useToast();
+    const { data: session } = useSession();
     const isEditMode = !!violationType;
     const { data: teachers, isLoading } = useSWR<Teacher[]>('/api/teachers', fetcher);
 
@@ -56,7 +57,6 @@ export function ViolationTypeForm({ children, violationType, onSuccess }: Violat
             category: '',
             start_point: 0,
             end_point: 0,
-            creator: '',
         },
     });
 
@@ -67,7 +67,6 @@ export function ViolationTypeForm({ children, violationType, onSuccess }: Violat
                 category: violationType.kategori,
                 start_point: violationType.poin || 0,
                 end_point: violationType.poin || 0,
-                creator: violationType.pembuat,
             });
         } else {
             form.reset({
@@ -75,33 +74,48 @@ export function ViolationTypeForm({ children, violationType, onSuccess }: Violat
                 category: '',
                 start_point: 0,
                 end_point: 0,
-                creator: '',
             });
         }
     }, [isEditMode, violationType, form, open]);
 
     async function onSubmit(values: z.infer<typeof formSchema>) {
         try {
-            const endpoint = isEditMode 
-                ? `/api/violation-types/edit-violation-type` 
-                : `/api/violation-types/add-violation-type`;
+            // Get the creator name from session
+            const creatorName = session?.user?.nama || 'Unknown';
             
-            const method = isEditMode ? 'PUT' : 'POST';
+            let response;
             
-            const response = await fetch(endpoint, {
-                method,
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    ...(isEditMode && { id: violationType?.id }),
-                    nama_pelanggaran: values.name,
-                    kategori: values.category,
-                    start_point: values.start_point,
-                    end_point: values.end_point,
-                    pembuat: values.creator,
-                }),
-            });
+            if (isEditMode) {
+                // Edit mode - PUT request to /api/violations-type/[id]
+                response = await fetch(`/api/violations-type/${violationType?.id}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        nama_pelanggaran: values.name,
+                        kategori: values.category,
+                        start_point: values.start_point,
+                        end_point: values.end_point,
+                        pembuat: creatorName,
+                    }),
+                });
+            } else {
+                // Add mode - POST request to /api/violations-type
+                response = await fetch('/api/violations-type', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        nama_pelanggaran: values.name,
+                        kategori: values.category,
+                        start_point: values.start_point,
+                        end_point: values.end_point,
+                        pembuat: creatorName,
+                    }),
+                });
+            }
 
             if (!response.ok) {
                 const errorData = await response.json();
@@ -125,6 +139,9 @@ export function ViolationTypeForm({ children, violationType, onSuccess }: Violat
             });
         }
     }
+
+    // Get the creator name from session
+    const creatorName = session?.user?.nama || 'Unknown';
 
     return (
         <Dialog open={open} onOpenChange={setOpen}>
@@ -209,30 +226,12 @@ export function ViolationTypeForm({ children, violationType, onSuccess }: Violat
                                 )}
                             />
                         </div>
-                        <FormField
-                            control={form.control}
-                            name="creator"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Dibuat Oleh</FormLabel>
-                                    <Select onValueChange={field.onChange} value={field.value}>
-                                        <FormControl>
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="Pilih pembuat" />
-                                            </SelectTrigger>
-                                        </FormControl>
-                                        <SelectContent>
-                                            {creatorOptions?.map((opt: { value: string; label: string; }) => (
-                                                <SelectItem key={opt.value} value={opt.value}>
-                                                    {opt.label}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
+                        <div className="space-y-2">
+                            <FormLabel>Dibuat Oleh</FormLabel>
+                            <div className="rounded-md border border-input px-3 py-2 text-sm">
+                                {creatorName}
+                            </div>
+                        </div>
                         <DialogFooter>
                             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
                                 Batal
