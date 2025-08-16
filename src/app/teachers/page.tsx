@@ -11,7 +11,7 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import useSWR from 'swr';
+import useSWR, { mutate } from 'swr';
 import { fetcher } from '@/lib/fetcher';
 import { Badge } from '@/components/ui/badge';
 import { useState } from 'react';
@@ -26,12 +26,20 @@ import {
 import { DeleteConfirmationDialog } from '@/components/delete-confirmation-dialog';
 import { Teacher } from '@/lib/data';
 import { cn } from '@/lib/utils';
+import { useSession } from 'next-auth/react';
+import { useToast } from '@/hooks/use-toast';
 
 const ROWS_PER_PAGE = 10;
 
 export default function TeachersPage() {
-    const { data: teachers, error } = useSWR<Teacher[]>('/api/teachers', fetcher);
+    const { data: teachers, error, isLoading } = useSWR<Teacher[]>('/api/teachers', fetcher);
+    const { data: session } = useSession();
+    const { toast } = useToast();
     const [currentPage, setCurrentPage] = useState(1);
+    const [deletingId, setDeletingId] = useState<number | null>(null);
+
+    // Check if user has permission to add/edit/delete teachers
+    const hasPermission = session?.user?.jabatan === 'Admin' || session?.user?.jabatan === 'Guru BK';
 
     if (error) return <div>Failed to load teachers</div>;
 
@@ -48,9 +56,45 @@ export default function TeachersPage() {
         setCurrentPage((prev) => Math.min(prev + 1, totalPages));
     };
 
-    const handleDelete = (teacherId: number) => {
-        console.log(`Deleting teacher with id: ${teacherId}`);
-        // Implement deletion logic here
+    const handleDelete = async (teacherId: number) => {
+        if (!hasPermission) {
+            toast({
+                title: "Akses Ditolak",
+                description: "Anda tidak memiliki izin untuk melakukan aksi ini.",
+                variant: "destructive",
+            });
+            return;
+        }
+
+        setDeletingId(teacherId);
+        
+        try {
+            const response = await fetch(`/api/teachers/${teacherId}`, {
+                method: 'DELETE',
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.message || 'Gagal menghapus guru');
+            }
+
+            toast({
+                title: "Sukses",
+                description: "Data guru berhasil dihapus.",
+            });
+
+            // Refresh the teachers data
+            mutate('/api/teachers');
+        } catch (error) {
+            toast({
+                title: "Error",
+                description: error instanceof Error ? error.message : 'Terjadi kesalahan yang tidak diketahui',
+                variant: "destructive",
+            });
+        } finally {
+            setDeletingId(null);
+        }
     };
 
     return (
@@ -58,12 +102,14 @@ export default function TeachersPage() {
             <div className="flex flex-col gap-4">
                 <div className="flex items-center justify-between">
                     <h1 className="text-3xl font-bold font-headline">Daftar Guru</h1>
-                    <TeacherForm>
-                        <Button>
-                            <PlusCircle />
-                            Tambah Guru
-                        </Button>
-                    </TeacherForm>
+                    {hasPermission && (
+                        <TeacherForm>
+                            <Button disabled={isLoading}>
+                                <PlusCircle />
+                                Tambah Guru
+                            </Button>
+                        </TeacherForm>
+                    )}
                 </div>
                 <Card>
                     <CardHeader>
@@ -76,22 +122,24 @@ export default function TeachersPage() {
                                     <TableHead>Nama</TableHead>
                                     <TableHead>Email</TableHead>
                                     <TableHead>Jabatan</TableHead>
-                                    <TableHead>
-                                        <span className="sr-only">Aksi</span>
-                                    </TableHead>
+                                    {hasPermission && (
+                                        <TableHead>
+                                            <span className="sr-only">Aksi</span>
+                                        </TableHead>
+                                    )}
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {teachers === undefined ? (
                                     <TableRow>
-                                        <TableCell colSpan={4} className="text-center py-10">
+                                        <TableCell colSpan={hasPermission ? 4 : 3} className="text-center py-10">
                                             <Loader2 className="h-6 w-6 animate-spin text-primary mx-auto" />
                                             <p className="mt-2">Memuat data guru...</p>
                                         </TableCell>
                                     </TableRow>
                                 ) : currentTeachers.length === 0 ? (
                                     <TableRow>
-                                        <TableCell colSpan={4} className="text-center py-10">
+                                        <TableCell colSpan={hasPermission ? 4 : 3} className="text-center py-10">
                                             Tidak ada data guru.
                                         </TableCell>
                                     </TableRow>
@@ -105,7 +153,7 @@ export default function TeachersPage() {
                                             <TableCell>
                                                 <Badge
                                                     variant={
-                                                        teacher.jabatan === 'Kepala Sekolah'
+                                                        teacher.jabatan === 'Pimpinan Sekolah'
                                                             ? 'destructive'
                                                             : teacher.jabatan === 'Guru BK'
                                                             ? 'default'
@@ -115,39 +163,46 @@ export default function TeachersPage() {
                                                     {teacher.jabatan}
                                                 </Badge>
                                             </TableCell>
-                                            <TableCell>
-                                                <DropdownMenu>
-                                                    <DropdownMenuTrigger asChild>
-                                                        <Button
-                                                            aria-haspopup="true"
-                                                            size="icon"
-                                                            variant="ghost"
-                                                        >
-                                                            <MoreVertical className="h-4 w-4" />
-                                                            <span className="sr-only">Toggle menu</span>
-                                                        </Button>
-                                                    </DropdownMenuTrigger>
-                                                    <DropdownMenuContent align="end">
-                                                        <TeacherForm teacher={teacher}>
-                                                            <DropdownMenuItem
-                                                                onSelect={(e) => e.preventDefault()}
+                                            {hasPermission && (
+                                                <TableCell>
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger asChild>
+                                                            <Button
+                                                                aria-haspopup="true"
+                                                                size="icon"
+                                                                variant="ghost"
+                                                                disabled={deletingId === teacher.id}
                                                             >
-                                                                Edit
-                                                            </DropdownMenuItem>
-                                                        </TeacherForm>
-                                                        <DeleteConfirmationDialog
-                                                            onConfirm={() => handleDelete(teacher.id)}
-                                                        >
-                                                            <DropdownMenuItem
-                                                                onSelect={(e) => e.preventDefault()}
-                                                                className="text-destructive focus:text-destructive"
+                                                                {deletingId === teacher.id ? (
+                                                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                                                ) : (
+                                                                    <MoreVertical className="h-4 w-4" />
+                                                                )}
+                                                                <span className="sr-only">Toggle menu</span>
+                                                            </Button>
+                                                        </DropdownMenuTrigger>
+                                                        <DropdownMenuContent align="end">
+                                                            <TeacherForm teacher={teacher}>
+                                                                <DropdownMenuItem
+                                                                    onSelect={(e) => e.preventDefault()}
+                                                                >
+                                                                    Edit
+                                                                </DropdownMenuItem>
+                                                            </TeacherForm>
+                                                            <DeleteConfirmationDialog
+                                                                onConfirm={() => handleDelete(teacher.id)}
                                                             >
-                                                                Hapus
-                                                            </DropdownMenuItem>
-                                                        </DeleteConfirmationDialog>
-                                                    </DropdownMenuContent>
-                                                </DropdownMenu>
-                                            </TableCell>
+                                                                <DropdownMenuItem
+                                                                    onSelect={(e) => e.preventDefault()}
+                                                                    className="text-destructive focus:text-destructive"
+                                                                >
+                                                                    Hapus
+                                                                </DropdownMenuItem>
+                                                            </DeleteConfirmationDialog>
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
+                                                </TableCell>
+                                            )}
                                         </TableRow>
                                     ))
                                 )}
