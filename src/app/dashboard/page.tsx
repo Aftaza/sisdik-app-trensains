@@ -141,8 +141,23 @@ export default function DashboardPage() {
     }, [studentsError, violationsError, teachersError, toast]);
 
     const topStudents = useMemo(() => {
-        if (!students) return [];
-        return [...students].sort((a, b) => b.total_poin - a.total_poin).slice(0, 5);
+        // 1. Cek jika data siswa belum dimuat atau tidak ada
+        if (!students || students.length === 0) {
+            return [];
+        }
+
+        // 2. Filter siswa yang memiliki poin > 0
+        const studentsWithPoints = students.filter(student => student.total_poin > 0);
+
+        // 3. Jika tidak ada siswa dengan poin > 0, kembalikan array kosong
+        if (studentsWithPoints.length === 0) {
+            return [];
+        }
+        
+        // 4. Urutkan berdasarkan total_poin secara menurun dan ambil 5 teratas
+        return [...studentsWithPoints]
+            .sort((a, b) => b.total_poin - a.total_poin)
+            .slice(0, 5);
     }, [students]);
 
     const chartColors = ['#2A628F', '#5582A6', '#7CB5B8', '#A3E4D7', '#CFFAD3'];
