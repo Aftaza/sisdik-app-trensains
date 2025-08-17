@@ -34,7 +34,7 @@ const formSchema = z.object({
     catatan: z.string().min(10, 'Catatan harus diisi minimal 10 karakter.'),
     guru_bk: z.string().min(1, 'Guru BK harus dipilih.'),
     poin: z.preprocess(
-        (val) => (val === '' || val === undefined ? undefined : Number(val)),
+        (val) => (val === '' || val === 0 ? 0 : Number(val)),
         z.number().int().min(1, 'Poin harus berupa angka positif.')
     ),
     violationTypeId: z.string().min(1, 'Tipe Pelanggaran harus dipilih'),
@@ -128,7 +128,7 @@ export function ViolationLogForm({ children, student, violation }: ViolationLogF
                     tanggal_terjadi: new Date(),
                     catatan: '',
                     guru_bk: '',
-                    poin: undefined,
+                    poin: 0,
                     violationTypeId: '',
                 });
             }

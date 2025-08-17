@@ -190,7 +190,7 @@ export function StudentProfileClient({ id }: StudentProfileClientProps) {
             // Refresh the violations data
             mutate(`/api/violations-log/${id}`);
             mutate(`/api/students/${id}`);
-            mutate(`/api/asnctions/${id}`);
+            mutate(`/api/sanctions/${id}`);
         } catch (error) {
             toast({
                 title: 'Gagal',
