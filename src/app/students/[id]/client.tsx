@@ -21,7 +21,7 @@ import {
     Loader2,
 } from 'lucide-react';
 import type { Sanction, Student, Violation } from '@/lib/data';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -51,17 +51,46 @@ const ROWS_PER_PAGE = 5;
 // Komponen SanctionsCard
 function SanctionsCard({ studentId }: { studentId: string | undefined }) {
     const { data: sanctionsData, error: sanctionError, isLoading: sanctionLoading } = useSWR<SanctionsResponse>(studentId ? `/api/sanctions/${studentId}` : null, fetcher);
-    const [completedSanctions, setCompletedSanctions] = useState<Set<string>>(new Set());
+    const { toast } = useToast();
 
-    const handleToggleSanction = (sanctionId: string) => {
+    // ✅ PERBAIKAN: Gunakan localStorage untuk inisialisasi state
+    const [completedSanctions, setCompletedSanctions] = useState<Set<string>>(() => {
+        if (typeof window !== 'undefined' && studentId) {
+            const stored = localStorage.getItem(`completed-sanctions-${studentId}`);
+            if (stored) {
+                try {
+                    // Pastikan data yang disimpan adalah array yang valid
+                    const parsed = JSON.parse(stored);
+                    if (Array.isArray(parsed)) {
+                        return new Set(parsed);
+                    }
+                } catch (e) {
+                    console.error("Failed to parse localStorage data:", e);
+                }
+            }
+        }
+        return new Set();
+    });
+
+    useEffect(() => {
+        if (studentId) {
+            localStorage.setItem(`completed-sanctions-${studentId}`, JSON.stringify(Array.from(completedSanctions)));
+        }
+    }, [completedSanctions, studentId]);
+
+    const handleToggleSanction = (sanction: string) => {
         setCompletedSanctions((prev) => {
             const newSet = new Set(prev);
-            if (newSet.has(sanctionId)) {
-                newSet.delete(sanctionId);
+            if (newSet.has(sanction)) {
+                newSet.delete(sanction);
             } else {
-                newSet.add(sanctionId);
+                newSet.add(sanction);
             }
             return newSet;
+        });
+        toast({
+            title: "Status Pembinaan Diperbarui",
+            description: completedSanctions.has(sanction) ? `"${sanction}" ditandai belum selesai.` : `"${sanction}" ditandai sudah selesai.`,
         });
     };
 
@@ -70,14 +99,12 @@ function SanctionsCard({ studentId }: { studentId: string | undefined }) {
             <Card>
                 <CardHeader><CardTitle>Tindak Lanjut & Sanksi</CardTitle></CardHeader>
                 <CardContent className="flex items-center justify-center h-48">
-                    <div className="w-8 h-8 border-4 border-gray-200 rounded-full animate-spin" style={{ borderTopColor: 'black' }} />
+                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
                 </CardContent>
             </Card>
         );
     }
     
-    // 🚨 PERBAIKAN DI SINI:
-    // Tambahkan kondisi untuk error dari SWR
     if (sanctionError) {
         return (
             <Card>
@@ -87,8 +114,7 @@ function SanctionsCard({ studentId }: { studentId: string | undefined }) {
         );
     }
     
-    // Cek apakah data tersedia atau array pembinaan kosong
-    if (!sanctionsData || sanctionsData.status === "error" || sanctionsData.pembinaan.length === 0) {
+    if (!sanctionsData  || sanctionsData.status === "error" || sanctionsData.pembinaan.length === 0) {
         return (
             <Card>
                 <CardHeader><CardTitle>Tindak Lanjut & Sanksi</CardTitle></CardHeader>
@@ -105,24 +131,27 @@ function SanctionsCard({ studentId }: { studentId: string | undefined }) {
             <CardContent>
                 <p className="mb-4 text-sm text-muted-foreground">Rentang Poin: {sanctionsData.start_poin}-{sanctionsData.end_poin}</p>
                 <ul className="space-y-4">
-                    {sanctionsData.pembinaan.map((pembinaan, index) => (
-                        <li
-                            key={index}
-                            className="flex items-start gap-4 cursor-pointer p-2 -m-2 rounded-lg hover:bg-accent"
-                            onClick={() => handleToggleSanction(pembinaan)}
-                        >
-                            <div>
-                                {completedSanctions.has(pembinaan) ? (
-                                    <SquareCheck className="h-5 w-5 text-green-500" />
-                                ) : (
-                                    <SquareX className="h-5 w-5 text-muted-foreground" />
-                                )}
-                            </div>
-                            <div>
-                                <p className="font-medium">{pembinaan}</p>
-                            </div>
-                        </li>
-                    ))}
+                    {sanctionsData.pembinaan.map((pembinaan, index) => {
+                        const isCompleted = completedSanctions.has(pembinaan);
+                        return (
+                            <li
+                                key={index}
+                                className="flex items-start gap-4 cursor-pointer p-2 -m-2 rounded-lg hover:bg-accent"
+                                onClick={() => handleToggleSanction(pembinaan)}
+                            >
+                                <div>
+                                    {isCompleted ? (
+                                        <SquareCheck className="h-5 w-5 text-green-500" />
+                                    ) : (
+                                        <SquareX className="h-5 w-5 text-muted-foreground" />
+                                    )}
+                                </div>
+                                <div>
+                                    <p className="font-medium">{pembinaan}</p>
+                                </div>
+                            </li>
+                        );
+                    })}
                 </ul>
             </CardContent>
         </Card>
