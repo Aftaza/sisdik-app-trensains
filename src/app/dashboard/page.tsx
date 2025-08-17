@@ -38,6 +38,7 @@ import { format } from 'date-fns';
 import { id } from 'date-fns/locale';
 import useSWR from 'swr';
 import { fetcher } from '@/lib/fetcher';
+import { ViolationLogForm } from '@/components/violation-log-form';
 
 interface Student {
     nis: number;
@@ -206,12 +207,12 @@ export default function DashboardPage() {
         <>
             <div className="flex items-center justify-between">
                 <h1 className="text-3xl font-bold font-headline">Dashboard Utama</h1>
-                {/* <ViolationForm> */}
+                <ViolationLogForm>
                     <Button>
                         <PlusCircle className="mr-2 h-4 w-4" />
                         Catat Pelanggaran
                     </Button>
-                {/* </ViolationForm> */}
+                </ViolationLogForm>
             </div>
 
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
