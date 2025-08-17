@@ -22,7 +22,6 @@ import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import { useSWRConfig } from 'swr';
-import { useSession } from 'next-auth/react';
 import useSWR from 'swr';
 import { fetcher } from '@/lib/fetcher';
 import type { Violation, Teacher, ViolationType, Student } from '@/lib/data';
@@ -51,12 +50,8 @@ export function ViolationLogForm({ children, student, violation }: ViolationLogF
     const [isLoading, setIsLoading] = useState(false);
     const { toast } = useToast();
     const { mutate } = useSWRConfig();
-    const { data: session } = useSession();
     const isEditMode = !!violation;
     const isStudentSpecific = !!student;
-
-    const userRole = session?.user?.jabatan;
-    const canPerformActions = userRole === 'Admin' || userRole === 'Guru BK';
 
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
@@ -137,14 +132,6 @@ export function ViolationLogForm({ children, student, violation }: ViolationLogF
     }, [open, isEditMode, violation, violationTypes, form, student]);
 
     async function onSubmit(values: z.infer<typeof formSchema>) {
-        if (!canPerformActions) {
-            toast({
-                title: 'Akses Ditolak',
-                description: 'Anda tidak memiliki izin untuk melakukan tindakan ini.',
-                variant: 'destructive',
-            });
-            return;
-        }
 
         setIsLoading(true);
         try {

@@ -129,7 +129,7 @@ export default function ViolationLogsPage() {
                                             <TableCell>{v.nis_siswa}</TableCell>
                                             <TableCell>
                                                 <Link
-                                                    href={`/students/${v.id_siswa}`}
+                                                    href={`/students/${v.nis_siswa}`}
                                                     className="font-medium hover:underline"
                                                 >
                                                     {v.nama_siswa}
