@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
         }
 
         const body = await req.json();
-
+        
         const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/add-violation-log`, {
             method: 'POST',
             headers: {

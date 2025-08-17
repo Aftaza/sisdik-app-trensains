@@ -29,7 +29,7 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { DeleteConfirmationDialog } from '@/components/delete-confirmation-dialog';
-import useSWR from 'swr';
+import useSWR, { useSWRConfig } from 'swr';
 import { fetcher } from '@/lib/fetcher';
 import { useToast } from '@/hooks/use-toast';
 import { useSession } from 'next-auth/react';
@@ -131,9 +131,10 @@ function SanctionsCard({ studentId }: { studentId: string | undefined }) {
 
 // Komponen StudentProfileClient
 export function StudentProfileClient({ id }: StudentProfileClientProps) {
-    const { data: student, error: studentError, isLoading: studentLoading, mutate } = useSWR<Student>(`/api/students/${id}`, fetcher);
+    const { data: student, error: studentError, isLoading: studentLoading } = useSWR<Student>(`/api/students/${id}`, fetcher);
     const { data: studentViolations, error: studentViolationsError, isLoading: violationsLoading } = useSWR<Violation[]>(`/api/violations-log/${id}`, fetcher);
     const { toast } = useToast();
+    const { mutate } = useSWRConfig();
     const { data: session } = useSession();
     
     const [currentPage, setCurrentPage] = useState(1); 
@@ -187,7 +188,9 @@ export function StudentProfileClient({ id }: StudentProfileClientProps) {
             });
 
             // Refresh the violations data
-            mutate();
+            mutate(`/api/violations-log/${id}`);
+            mutate(`/api/students/${id}`);
+            mutate(`/api/asnctions/${id}`);
         } catch (error) {
             toast({
                 title: 'Gagal',
@@ -221,8 +224,6 @@ export function StudentProfileClient({ id }: StudentProfileClientProps) {
         }
     };
     
-    // 🚨 PERBAIKAN DI SINI:
-    // Cek kondisi error pada student dan violations
     if (studentLoading || violationsLoading) {
         return (
             <div className="flex flex-col gap-4 p-4">
@@ -264,7 +265,7 @@ export function StudentProfileClient({ id }: StudentProfileClientProps) {
             </div>
 
             <div className="flex justify-start">
-                <ViolationLogForm studentId={id}>
+                <ViolationLogForm student={student}>
                     <Button>
                         <PlusCircle className="mr-2 h-4 w-4" />
                         Catat Pelanggaran
@@ -332,7 +333,7 @@ export function StudentProfileClient({ id }: StudentProfileClientProps) {
                                                             <DropdownMenuContent align="end">
                                                                 <ViolationLogForm
                                                                     violation={v}
-                                                                    studentId={id}
+                                                                    student={student}
                                                                 >
                                                                     <DropdownMenuItem
                                                                         onSelect={(e) =>

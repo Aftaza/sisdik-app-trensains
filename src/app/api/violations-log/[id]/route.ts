@@ -64,14 +64,14 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
         }
 
         const body = await req.json();
-
+        console.log(body);
         const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/edit-violation-log`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
                 Authorization: `Bearer ${token.jwt}`,
             },
-            body: JSON.stringify({ ...body, id: id}),
+            body: JSON.stringify({ ...body, id: parseInt(id)}),
         });
 
         const data = await response.json();
