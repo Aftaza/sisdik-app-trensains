@@ -3,7 +3,7 @@ import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { cn } from '@/lib/utils';
 import { ThemeProvider } from '@/components/theme-provider';
-import ResponsiveLayout from './responsive-layout';
+import ResponsiveLayout from '@/components/layout/responsive-layout';
 import AppProvider from '@/context/UserContext';
 
 export const metadata: Metadata = {
@@ -20,7 +20,7 @@ export const metadata: Metadata = {
     },
 };
 
-export default function RootLayout({
+export default function RootPageLayout({
     children,
 }: Readonly<{
     children: React.ReactNode;
