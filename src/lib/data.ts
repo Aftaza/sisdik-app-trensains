@@ -40,6 +40,13 @@ export type Sanction = {
     end_poin: number;
 };
 
+export type classes = {
+    id: number,
+    nama_kelas: string;
+    wali_kelas: string;
+    total_siswa: number;
+}
+
 // export const students: Student[] = [
 //     { nama_lengkap: 'Budi Santoso', nis: 12345, kelas: 'XII-A', total_poin: 120 },
 //     { nama_lengkap: 'Citra Lestari', nis: 12346, kelas: 'XII-B', total_poin: 95 },

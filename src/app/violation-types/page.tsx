@@ -240,7 +240,7 @@ export default function ViolationTypesPage() {
                                                                 </DropdownMenuItem>
                                                             </ViolationTypeForm>
                                                             <DeleteConfirmationDialog
-                                                                onConfirm={() => handleDelete(type.id)}
+                                                                onConfirm={() => handleDelete(type.id.toString())}
                                                             >
                                                                 <DropdownMenuItem
                                                                     onSelect={(e) => e.preventDefault()}
