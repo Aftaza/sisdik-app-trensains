@@ -47,7 +47,7 @@ export default function ClassesClient() {
                         <div className="flex items-center justify-between">
                             <h1 className="text-3xl font-bold font-headline">Daftar Kelas</h1>
                             {canPerformActions && (
-                                <ClassForm>
+                                <ClassForm mutate={mutate}>
                                     <Button>
                                         <PlusCircle className="mr-2 h-4 w-4" />
                                         Tambah Tipe
@@ -90,9 +90,31 @@ export default function ClassesClient() {
         setCurrentPage((prev) => Math.min(prev + 1, totalPages));
     };
 
-    const handleDelete = (classId: string) => {
-        console.log(`Deleting class with id: ${classId}`);
-        // Implement deletion logic here
+    const handleDelete = async (classId: string) => {
+        try {
+            const response = await fetch(`/api/classes/${classId}`, {
+                method: 'DELETE',
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Gagal menghapus kelas');
+            }
+
+            // Revalidate data
+            mutate();
+            
+            toast({
+                title: 'Sukses',
+                description: 'Kelas berhasil dihapus.',
+            });
+        } catch (error: any) {
+            toast({
+                title: 'Error',
+                description: error.message || 'Terjadi kesalahan saat menghapus kelas',
+                variant: 'destructive',
+            });
+        }
     };
 
     return (
@@ -100,12 +122,14 @@ export default function ClassesClient() {
             <div className="flex flex-col gap-4">
                 <div className="flex items-center justify-between">
                     <h1 className="text-3xl font-bold font-headline">Daftar Kelas</h1>
-                    <ClassForm>
-                        <Button>
-                            <PlusCircle className="mr-2 h-4 w-4" />
-                            Tambah Kelas
-                        </Button>
-                    </ClassForm>
+                    {canPerformActions && (
+                        <ClassForm mutate={mutate}>
+                            <Button>
+                                <PlusCircle className="mr-2 h-4 w-4" />
+                                Tambah Kelas
+                            </Button>
+                        </ClassForm>
+                    )}
                 </div>
                 <Card>
                     <CardHeader>
@@ -118,13 +142,13 @@ export default function ClassesClient() {
                                     <TableHead>Nama Kelas</TableHead>
                                     <TableHead>Wali Kelas</TableHead>
                                     <TableHead>Jumlah Siswa</TableHead>
-                                    <TableHead className="text-center">Aksi</TableHead>
+                                    {canPerformActions && <TableHead className="text-center">Aksi</TableHead>}
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {isLoading ? (
                                     <TableRow>
-                                        <TableCell colSpan={canPerformActions ? 5 : 4} className="text-center py-10">
+                                        <TableCell colSpan={canPerformActions ? 4 : 3} className="text-center py-10">
                                             <div className="flex flex-col items-center justify-center">
                                                 <Loader2 className="h-6 w-6 animate-spin text-primary" />
                                                 <p className="mt-2">Memuat data kelas...</p>
@@ -133,16 +157,16 @@ export default function ClassesClient() {
                                     </TableRow>
                                 ) : currentClasses.length === 0 ? (
                                     <TableRow>
-                                        <TableCell colSpan={canPerformActions ? 5 : 4} className="text-center py-10">
+                                        <TableCell colSpan={canPerformActions ? 4 : 3} className="text-center py-10">
                                             <div className="flex flex-col items-center justify-center">
                                                 <p>Tidak ada data Kelas.</p>
                                                 {canPerformActions && (
-                                                    // <ClassForm>
+                                                    <ClassForm mutate={mutate}>
                                                         <Button className="mt-4">
                                                             <PlusCircle className="mr-2 h-4 w-4" />
                                                             Tambah Kelas
                                                         </Button>
-                                                    // </ClassForm>
+                                                    </ClassForm>
                                                 )}
                                             </div>
                                         </TableCell>
@@ -153,39 +177,41 @@ export default function ClassesClient() {
                                             <TableCell className="font-medium">{classItem?.nama_kelas}</TableCell>
                                             <TableCell>{classItem?.wali_kelas}</TableCell>
                                             <TableCell>{classItem?.total_siswa}</TableCell>
-                                            <TableCell className="text-center">
-                                                <DropdownMenu>
-                                                    <DropdownMenuTrigger asChild>
-                                                        <Button
-                                                            aria-haspopup="true"
-                                                            size="icon"
-                                                            variant="ghost"
-                                                        >
-                                                            <MoreVertical className="h-4 w-4" />
-                                                            <span className="sr-only">Toggle menu</span>
-                                                        </Button>
-                                                    </DropdownMenuTrigger>
-                                                    <DropdownMenuContent align="end">
-                                                        <ClassForm classData={classItem}>
-                                                            <DropdownMenuItem
-                                                                onSelect={(e) => e.preventDefault()}
+                                            {canPerformActions && (
+                                                <TableCell className="text-center">
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger asChild>
+                                                            <Button
+                                                                aria-haspopup="true"
+                                                                size="icon"
+                                                                variant="ghost"
                                                             >
-                                                                Edit
-                                                            </DropdownMenuItem>
-                                                        </ClassForm>
-                                                        <DeleteConfirmationDialog
-                                                            onConfirm={() => handleDelete(classItem.id.toString())}
-                                                        >
-                                                            <DropdownMenuItem
-                                                                onSelect={(e) => e.preventDefault()}
-                                                                className="text-destructive focus:text-destructive"
+                                                                <MoreVertical className="h-4 w-4" />
+                                                                <span className="sr-only">Toggle menu</span>
+                                                            </Button>
+                                                        </DropdownMenuTrigger>
+                                                        <DropdownMenuContent align="end">
+                                                            <ClassForm classData={classItem} mutate={mutate}>
+                                                                <DropdownMenuItem
+                                                                    onSelect={(e) => e.preventDefault()}
+                                                                >
+                                                                    Edit
+                                                                </DropdownMenuItem>
+                                                            </ClassForm>
+                                                            <DeleteConfirmationDialog
+                                                                onConfirm={() => handleDelete(classItem.id.toString())}
                                                             >
-                                                                Hapus
-                                                            </DropdownMenuItem>
-                                                        </DeleteConfirmationDialog>
-                                                    </DropdownMenuContent>
-                                                </DropdownMenu>
-                                            </TableCell>
+                                                                <DropdownMenuItem
+                                                                    onSelect={(e) => e.preventDefault()}
+                                                                    className="text-destructive focus:text-destructive"
+                                                                >
+                                                                    Hapus
+                                                                </DropdownMenuItem>
+                                                            </DeleteConfirmationDialog>
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
+                                                </TableCell>
+                                            )}
                                         </TableRow>
                                     )))}
                             </TableBody>

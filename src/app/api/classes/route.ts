@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
         const data = await response.json();
         if (!response.ok) {
             return NextResponse.json(
-                { message: data.msg || 'Failed to fetch violation types' },
+                { message: data.msg || 'Failed to fetch classes' },
                 { status: response.status }
             );
         }
@@ -66,7 +66,7 @@ export async function POST(req: NextRequest) {
         const data = await response.json();
         if (!response.ok) {
             return NextResponse.json(
-                { message: data.msg || 'Failed to add violation type' },
+                { message: data.msg || 'Failed to add class' },
                 { status: response.status }
             );
         }

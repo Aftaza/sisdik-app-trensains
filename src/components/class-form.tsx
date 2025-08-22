@@ -21,6 +21,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import type { classes, Teacher } from '@/lib/data';
 import useSWR, { useSWRConfig } from 'swr';
 import { fetcher } from '@/lib/fetcher';
+import { Loader2 } from 'lucide-react';
+import { useSession } from 'next-auth/react';
 
 const formSchema = z.object({
     name: z.string().min(3, 'Nama kelas harus diisi minimal 3 karakter.'),
@@ -30,14 +32,19 @@ const formSchema = z.object({
 type ClassFormProps = {
     children: React.ReactNode;
     classData?: classes | undefined;
+    mutate?: () => void;
 };
 
-export function ClassForm({ children, classData }: ClassFormProps) {
+export function ClassForm({ children, classData, mutate }: ClassFormProps) {
     const [open, setOpen] = useState(false);
     const { data: teachers, isLoading: teachersLoading } = useSWR<Teacher[]>('/api/teachers', fetcher);
     const { toast } = useToast();
-    const { mutate } = useSWRConfig();
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const { data: session } = useSession()
     const isEditMode = !!classData;
+
+    const hasPermission =
+        session?.user?.jabatan === 'Admin' || session?.user?.jabatan === 'Guru BK';
 
     const teacherOptions = teachers?.filter((t) => t.jabatan === 'Wali Kelas')
         .map((t) => ({ value: t.nama, label: t.nama })) || [];
@@ -64,15 +71,64 @@ export function ClassForm({ children, classData }: ClassFormProps) {
         }
     }, [isEditMode, classData, form, open]);
 
-    function onSubmit(values: z.infer<typeof formSchema>) {
-        console.log(values);
-        toast({
-            title: 'Sukses',
-            description: isEditMode
-                ? `Data kelas "${values.name}" berhasil diperbarui.`
-                : `Kelas baru "${values.name}" berhasil ditambahkan.`,
-        });
-        setOpen(false);
+    async function onSubmit(values: z.infer<typeof formSchema>) {
+        if (!hasPermission) {
+            toast({
+                title: 'Akses Ditolak',
+                description: 'Anda tidak memiliki izin untuk melakukan aksi ini.',
+                variant: 'destructive',
+            });
+            return;
+        }
+        setIsSubmitting(true);
+        try {
+            const url = isEditMode ? `/api/classes/${classData?.id}` : '/api/classes';
+            const method = isEditMode ? 'PUT' : 'POST';
+            
+            const body = {
+                nama_kelas: values.name,
+                wali_kelas: values.homeroomTeacher,
+            };
+
+            const response = await fetch(url, {
+                method,
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(body),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || `Gagal ${isEditMode ? 'memperbarui' : 'menambah'} kelas`);
+            }
+
+            // Revalidate data
+            if (mutate) {
+                mutate();
+            }
+
+            toast({
+                title: 'Sukses',
+                description: isEditMode
+                    ? `Data kelas "${values.name}" berhasil diperbarui.`
+                    : `Kelas baru "${values.name}" berhasil ditambahkan.`,
+            });
+            
+            setOpen(false);
+        } catch (error: any) {
+            toast({
+                title: 'Error',
+                description: error.message || `Terjadi kesalahan saat ${isEditMode ? 'memperbarui' : 'menambah'} kelas`,
+                variant: 'destructive',
+            });
+        } finally {
+            setIsSubmitting(false);
+        }
+    }
+
+    if (!hasPermission) {
+        return null;
     }
 
     return (
@@ -131,10 +187,20 @@ export function ClassForm({ children, classData }: ClassFormProps) {
                             )}
                         />
                         <DialogFooter>
-                            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                            <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={isSubmitting}>
                                 Batal
                             </Button>
-                            <Button type="submit">Simpan</Button>
+                            <Button type="submit" disabled={isSubmitting}>
+                                {isSubmitting ? (
+                                        <>
+                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                            Menyimpan...
+                                        </>
+                                    ) : (
+                                        'Simpan'
+                                    )
+                                }
+                            </Button>
                         </DialogFooter>
                     </form>
                 </Form>

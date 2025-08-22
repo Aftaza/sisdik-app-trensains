@@ -23,7 +23,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
         }
 
         const body = await req.json();
-        console.log(body);
+        
         const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/edit-class`, {
             method: 'PUT',
             headers: {
@@ -32,11 +32,12 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
             },
             body: JSON.stringify({ ...body, id: id }),
         });
-
+        
         const data = await response.json();
+        
         if (!response.ok) {
             return NextResponse.json(
-                { message: data.msg || 'Failed to edit violation type' },
+                { message: data.msg || 'Failed to edit class' },
                 { status: response.status }
             );
         }
@@ -73,15 +74,14 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
                 'Content-Type': 'application/json',
                 Authorization: `Bearer ${token.jwt}`,
             },
-            body: JSON.stringify({
-                id: id,
-            }),
+            body: JSON.stringify({ id: id })
         });
 
         const data = await response.json();
+        
         if (!response.ok) {
             return NextResponse.json(
-                { message: data.msg || 'Failed to delete violation type' },
+                { message: data.msg || 'Failed to delete class' },
                 { status: response.status }
             );
         }
