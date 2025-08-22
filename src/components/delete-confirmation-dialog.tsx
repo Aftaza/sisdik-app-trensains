@@ -55,7 +55,7 @@ export function DeleteConfirmationDialog({ children, onConfirm }: DeleteConfirma
                     <AlertDialogTitle>Apakah Anda Yakin?</AlertDialogTitle>
                     <AlertDialogDescription>
                         Tindakan ini tidak dapat diurungkan. Data akan dihapus secara permanen dari
-                        server.
+                        server bahkan data yang terhubung.
                     </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
