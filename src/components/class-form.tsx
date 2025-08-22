@@ -18,8 +18,9 @@ import { Input } from './ui/input';
 import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { teachers } from '@/lib/data';
-import type { ClassData } from '@/lib/data';
+import type { classes, Teacher } from '@/lib/data';
+import useSWR, { useSWRConfig } from 'swr';
+import { fetcher } from '@/lib/fetcher';
 
 const formSchema = z.object({
     name: z.string().min(3, 'Nama kelas harus diisi minimal 3 karakter.'),
@@ -28,17 +29,18 @@ const formSchema = z.object({
 
 type ClassFormProps = {
     children: React.ReactNode;
-    classData?: ClassData;
+    classData?: classes | undefined;
 };
-
-const teacherOptions = teachers
-    .filter((t) => t.role === 'Wali Kelas')
-    .map((t) => ({ value: t.name, label: t.name }));
 
 export function ClassForm({ children, classData }: ClassFormProps) {
     const [open, setOpen] = useState(false);
+    const { data: teachers, isLoading: teachersLoading } = useSWR<Teacher[]>('/api/teachers', fetcher);
     const { toast } = useToast();
+    const { mutate } = useSWRConfig();
     const isEditMode = !!classData;
+
+    const teacherOptions = teachers?.filter((t) => t.jabatan === 'Wali Kelas')
+        .map((t) => ({ value: t.nama, label: t.nama })) || [];
 
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
@@ -50,7 +52,10 @@ export function ClassForm({ children, classData }: ClassFormProps) {
 
     useEffect(() => {
         if (isEditMode && classData) {
-            form.reset(classData);
+            form.reset({
+                name: classData?.nama_kelas,
+                homeroomTeacher: classData?.wali_kelas,
+            });
         } else {
             form.reset({
                 name: '',
@@ -107,7 +112,7 @@ export function ClassForm({ children, classData }: ClassFormProps) {
                             render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>Wali Kelas</FormLabel>
-                                    <Select onValueChange={field.onChange} value={field.value}>
+                                    <Select onValueChange={field.onChange} value={field.value} disabled={teachersLoading}>
                                         <FormControl>
                                             <SelectTrigger>
                                                 <SelectValue placeholder="Pilih wali kelas" />

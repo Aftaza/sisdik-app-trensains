@@ -18,7 +18,7 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { DeleteConfirmationDialog } from '@/components/delete-confirmation-dialog';
-// import { ClassForm } from '@/components/class-form';
+import { ClassForm } from '@/components/class-form';
 import { useState } from 'react';
 import useSWR from 'swr';
 import { useSession } from 'next-auth/react';
@@ -47,12 +47,12 @@ export default function ClassesClient() {
                         <div className="flex items-center justify-between">
                             <h1 className="text-3xl font-bold font-headline">Daftar Kelas</h1>
                             {canPerformActions && (
-                                // <ClassForm>
+                                <ClassForm>
                                     <Button>
                                         <PlusCircle className="mr-2 h-4 w-4" />
                                         Tambah Tipe
                                     </Button>
-                                // </ClassForm>
+                                </ClassForm>
                             )}
                         </div>
                         <Card>
@@ -100,12 +100,12 @@ export default function ClassesClient() {
             <div className="flex flex-col gap-4">
                 <div className="flex items-center justify-between">
                     <h1 className="text-3xl font-bold font-headline">Daftar Kelas</h1>
-                    {/* <ClassForm> */}
+                    <ClassForm>
                         <Button>
                             <PlusCircle className="mr-2 h-4 w-4" />
                             Tambah Kelas
                         </Button>
-                    {/* </ClassForm> */}
+                    </ClassForm>
                 </div>
                 <Card>
                     <CardHeader>
@@ -166,13 +166,13 @@ export default function ClassesClient() {
                                                         </Button>
                                                     </DropdownMenuTrigger>
                                                     <DropdownMenuContent align="end">
-                                                        {/* <ClassForm classData={classItem}> */}
+                                                        <ClassForm classData={classItem}>
                                                             <DropdownMenuItem
                                                                 onSelect={(e) => e.preventDefault()}
                                                             >
                                                                 Edit
                                                             </DropdownMenuItem>
-                                                        {/* </ClassForm> */}
+                                                        </ClassForm>
                                                         <DeleteConfirmationDialog
                                                             onConfirm={() => handleDelete(classItem.id.toString())}
                                                         >
