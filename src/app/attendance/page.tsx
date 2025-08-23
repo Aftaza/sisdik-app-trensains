@@ -27,9 +27,10 @@ import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import RootLayout from '../dashboard/layout';
+import useSWR from 'swr';
+import { fetcher } from '@/lib/fetcher';
 
 const ROWS_PER_PAGE = 10;
-const classOptions = ['Semua Kelas', ...Array.from(new Set(students.map((s) => s.class)))];
 
 const getMonthOptions = () => {
     const options = [];
@@ -51,6 +52,11 @@ export function AttendanceClient() {
     const [selectedClass, setSelectedClass] = useState('Semua Kelas');
     const [isExporting, setIsExporting] = useState(false);
     const { toast } = useToast();
+    
+    const { data: classData, isLoading: classLoading } = useSWR('/api/classes', fetcher);
+    const { data: monthlyAttendanceData, isLoading: attendanceLoading, mutate } = useSWR('/api/classes', fetcher);
+
+    const classOptions = ['Semua Kelas', ...Array.from(new Set(students.map((s) => s.class)))];
 
     const filteredAttendance = useMemo(() => {
         let filtered = monthlyAttendanceData.filter((att) => att.month === selectedMonth);

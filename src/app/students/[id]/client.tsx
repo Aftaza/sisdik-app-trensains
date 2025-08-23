@@ -34,6 +34,7 @@ import { fetcher } from '@/lib/fetcher';
 import { useToast } from '@/hooks/use-toast';
 import { useSession } from 'next-auth/react';
 import { ViolationLogForm } from '@/components/violation-log-form';
+import { AttendanceForm } from '@/components/attendance-form';
 
 type StudentProfileClientProps = {
     id: string;
@@ -46,11 +47,16 @@ interface SanctionsResponse {
     pembinaan: string[];
 }
 
-const ROWS_PER_PAGE = 5;
+const VIOLATIONS_PER_PAGE = 5;
+const ATTENDANCE_PER_PAGE = 5;
 
 // Komponen SanctionsCard
 function SanctionsCard({ studentId }: { studentId: string | undefined }) {
-    const { data: sanctionsData, error: sanctionError, isLoading: sanctionLoading } = useSWR<SanctionsResponse>(studentId ? `/api/sanctions/${studentId}` : null, fetcher);
+    const {
+        data: sanctionsData,
+        error: sanctionError,
+        isLoading: sanctionLoading,
+    } = useSWR<SanctionsResponse>(studentId ? `/api/sanctions/${studentId}` : null, fetcher);
     const { toast } = useToast();
 
     // ✅ PERBAIKAN: Gunakan localStorage untuk inisialisasi state
@@ -65,7 +71,7 @@ function SanctionsCard({ studentId }: { studentId: string | undefined }) {
                         return new Set(parsed);
                     }
                 } catch (e) {
-                    console.error("Failed to parse localStorage data:", e);
+                    console.error('Failed to parse localStorage data:', e);
                 }
             }
         }
@@ -74,7 +80,10 @@ function SanctionsCard({ studentId }: { studentId: string | undefined }) {
 
     useEffect(() => {
         if (studentId) {
-            localStorage.setItem(`completed-sanctions-${studentId}`, JSON.stringify(Array.from(completedSanctions)));
+            localStorage.setItem(
+                `completed-sanctions-${studentId}`,
+                JSON.stringify(Array.from(completedSanctions))
+            );
         }
     }, [completedSanctions, studentId]);
 
@@ -89,36 +98,52 @@ function SanctionsCard({ studentId }: { studentId: string | undefined }) {
             return newSet;
         });
         toast({
-            title: "Status Pembinaan Diperbarui",
-            description: completedSanctions.has(sanction) ? `"${sanction}" ditandai belum selesai.` : `"${sanction}" ditandai sudah selesai.`,
+            title: 'Status Pembinaan Diperbarui',
+            description: completedSanctions.has(sanction)
+                ? `"${sanction}" ditandai belum selesai.`
+                : `"${sanction}" ditandai sudah selesai.`,
         });
     };
 
     if (sanctionLoading) {
         return (
             <Card>
-                <CardHeader><CardTitle>Tindak Lanjut & Sanksi</CardTitle></CardHeader>
+                <CardHeader>
+                    <CardTitle>Tindak Lanjut & Sanksi</CardTitle>
+                </CardHeader>
                 <CardContent className="flex items-center justify-center h-48">
                     <Loader2 className="h-6 w-6 animate-spin text-primary" />
                 </CardContent>
             </Card>
         );
     }
-    
+
     if (sanctionError) {
         return (
             <Card>
-                <CardHeader><CardTitle>Tindak Lanjut & Sanksi</CardTitle></CardHeader>
-                <CardContent className="text-center text-muted-foreground p-6">Data tidak ditemukan.</CardContent>
+                <CardHeader>
+                    <CardTitle>Tindak Lanjut & Sanksi</CardTitle>
+                </CardHeader>
+                <CardContent className="text-center text-muted-foreground p-6">
+                    Data tidak ditemukan.
+                </CardContent>
             </Card>
         );
     }
-    
-    if (!sanctionsData  || sanctionsData.status === "error" || sanctionsData.pembinaan.length === 0) {
+
+    if (
+        !sanctionsData ||
+        sanctionsData.status === 'error' ||
+        sanctionsData.pembinaan.length === 0
+    ) {
         return (
             <Card>
-                <CardHeader><CardTitle>Tindak Lanjut & Sanksi</CardTitle></CardHeader>
-                <CardContent className="text-center text-muted-foreground p-6">Tidak ada sanksi yang berlaku.</CardContent>
+                <CardHeader>
+                    <CardTitle>Tindak Lanjut & Sanksi</CardTitle>
+                </CardHeader>
+                <CardContent className="text-center text-muted-foreground p-6">
+                    Tidak ada sanksi yang berlaku.
+                </CardContent>
             </Card>
         );
     }
@@ -129,7 +154,9 @@ function SanctionsCard({ studentId }: { studentId: string | undefined }) {
                 <CardTitle>Tindak Lanjut & Sanksi</CardTitle>
             </CardHeader>
             <CardContent>
-                <p className="mb-4 text-sm text-muted-foreground">Rentang Poin: {sanctionsData.start_poin}-{sanctionsData.end_poin}</p>
+                <p className="mb-4 text-sm text-muted-foreground">
+                    Rentang Poin: {sanctionsData.start_poin}-{sanctionsData.end_poin}
+                </p>
                 <ul className="space-y-4">
                     {sanctionsData.pembinaan.map((pembinaan, index) => {
                         const isCompleted = completedSanctions.has(pembinaan);
@@ -158,15 +185,171 @@ function SanctionsCard({ studentId }: { studentId: string | undefined }) {
     );
 }
 
+function AttendanceLogCard({ studentId }: { studentId: string }) {
+    const [currentPage, setCurrentPage] = useState(1);
+    const studentAttendance = dailyAttendanceData.filter((att) => att.studentId === studentId);
+
+    const totalPages = Math.ceil(studentAttendance.length / ATTENDANCE_PER_PAGE);
+    const startIndex = (currentPage - 1) * ATTENDANCE_PER_PAGE;
+    const endIndex = startIndex + ATTENDANCE_PER_PAGE;
+    const currentAttendance = studentAttendance.slice(startIndex, endIndex);
+
+    const handlePreviousPage = () => {
+        setCurrentPage((prev) => Math.max(prev - 1, 1));
+    };
+
+    const handleNextPage = () => {
+        setCurrentPage((prev) => Math.min(prev + 1, totalPages));
+    };
+
+    const handleDelete = (attendanceId: string) => {
+        console.log(`Deleting attendance log with id: ${attendanceId}`);
+    };
+
+    const getBadgeVariant = (status: DailyAttendance['status']) => {
+        switch (status) {
+            case 'Hadir':
+                return 'secondary';
+            case 'Sakit':
+                return 'default';
+            case 'Alpha':
+                return 'destructive';
+            default:
+                return 'secondary';
+        }
+    };
+    const getBadgeClass = (status: DailyAttendance['status']) => {
+        switch (status) {
+            case 'Hadir':
+                return 'bg-green-100 text-green-800';
+            case 'Sakit':
+                return 'bg-yellow-100 text-yellow-800';
+            default:
+                return '';
+        }
+    };
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>Log Absensi Harian</CardTitle>
+            </CardHeader>
+            <CardContent>
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Tanggal</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead>
+                                <span className="sr-only">Aksi</span>
+                            </TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {currentAttendance.length > 0 ? (
+                            currentAttendance.map((att) => (
+                                <TableRow key={att.id}>
+                                    <TableCell>
+                                        {new Date(att.date).toLocaleDateString('id-ID', {
+                                            year: 'numeric',
+                                            month: 'long',
+                                            day: 'numeric',
+                                        })}
+                                    </TableCell>
+                                    <TableCell>
+                                        <Badge
+                                            variant={getBadgeVariant(att.status)}
+                                            className={getBadgeClass(att.status)}
+                                        >
+                                            {att.status}
+                                        </Badge>
+                                    </TableCell>
+                                    <TableCell>
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button
+                                                    aria-haspopup="true"
+                                                    size="icon"
+                                                    variant="ghost"
+                                                >
+                                                    <MoreVertical className="h-4 w-4" />
+                                                    <span className="sr-only">Toggle menu</span>
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                                <DeleteConfirmationDialog
+                                                    onConfirm={() => handleDelete(att.id)}
+                                                >
+                                                    <DropdownMenuItem
+                                                        onSelect={(e) => e.preventDefault()}
+                                                        className="text-destructive focus:text-destructive"
+                                                    >
+                                                        Hapus
+                                                    </DropdownMenuItem>
+                                                </DeleteConfirmationDialog>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    </TableCell>
+                                </TableRow>
+                            ))
+                        ) : (
+                            <TableRow>
+                                <TableCell colSpan={3} className="text-center">
+                                    Tidak ada data absensi.
+                                </TableCell>
+                            </TableRow>
+                        )}
+                    </TableBody>
+                </Table>
+            </CardContent>
+            {totalPages > 1 && (
+                <CardFooter className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">
+                        Halaman {currentPage} dari {totalPages}
+                    </span>
+                    <div className="flex items-center gap-2">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handlePreviousPage}
+                            disabled={currentPage === 1}
+                        >
+                            <ChevronLeft className="h-4 w-4" />
+                            Sebelumnya
+                        </Button>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handleNextPage}
+                            disabled={currentPage === totalPages}
+                        >
+                            Berikutnya
+                            <ChevronRight className="h-4 w-4" />
+                        </Button>
+                    </div>
+                </CardFooter>
+            )}
+        </Card>
+    );
+}
+
 // Komponen StudentProfileClient
 export function StudentProfileClient({ id }: StudentProfileClientProps) {
-    const { data: student, error: studentError, isLoading: studentLoading } = useSWR<Student>(`/api/students/${id}`, fetcher);
-    const { data: studentViolations, error: studentViolationsError, isLoading: violationsLoading } = useSWR<Violation[]>(`/api/violations-log/${id}`, fetcher);
+    const {
+        data: student,
+        error: studentError,
+        isLoading: studentLoading,
+    } = useSWR<Student>(`/api/students/${id}`, fetcher);
+    const {
+        data: studentViolations,
+        error: studentViolationsError,
+        isLoading: violationsLoading,
+    } = useSWR<Violation[]>(`/api/violations-log/${id}`, fetcher);
     const { toast } = useToast();
     const { mutate } = useSWRConfig();
     const { data: session } = useSession();
-    
-    const [currentPage, setCurrentPage] = useState(1); 
+
+    const [currentPage, setCurrentPage] = useState(1);
 
     // Check user roles
     const userRole = session?.user?.jabatan;
@@ -174,9 +357,9 @@ export function StudentProfileClient({ id }: StudentProfileClientProps) {
 
     // 🚨 PERBAIKAN: Menambahkan guard clause untuk menghindari error saat data undefined
     const violations = studentViolations || [];
-    const totalPages = Math.ceil(violations.length / ROWS_PER_PAGE);
-    const startIndex = (currentPage - 1) * ROWS_PER_PAGE;
-    const endIndex = startIndex + ROWS_PER_PAGE;
+    const totalPages = Math.ceil(violations.length / VIOLATIONS_PER_PAGE);
+    const startIndex = (currentPage - 1) * VIOLATIONS_PER_PAGE;
+    const endIndex = startIndex + VIOLATIONS_PER_PAGE;
     const currentViolations = violations.slice(startIndex, endIndex);
 
     const handlePreviousPage = () => {
@@ -223,7 +406,10 @@ export function StudentProfileClient({ id }: StudentProfileClientProps) {
         } catch (error) {
             toast({
                 title: 'Gagal',
-                description: error instanceof Error ? error.message : 'Terjadi kesalahan saat menghapus pelanggaran.',
+                description:
+                    error instanceof Error
+                        ? error.message
+                        : 'Terjadi kesalahan saat menghapus pelanggaran.',
                 variant: 'destructive',
             });
         }
@@ -252,14 +438,14 @@ export function StudentProfileClient({ id }: StudentProfileClientProps) {
             return 'text-destructive';
         }
     };
-    
+
     if (studentLoading || violationsLoading) {
         return (
             <div className="flex flex-col gap-4 p-4">
                 <Loader2 className="h-6 w-6 animate-spin text-gray-500 mx-auto" />
                 <p className="text-center text-muted-foreground">Memuat data siswa...</p>
             </div>
-        )
+        );
     }
 
     if (studentError || studentViolationsError) {
@@ -267,7 +453,7 @@ export function StudentProfileClient({ id }: StudentProfileClientProps) {
             <div className="flex flex-col gap-4 p-4">
                 <p className="text-center text-muted-foreground">Data siswa tidak ditemukan.</p>
             </div>
-        )
+        );
     }
 
     return (
@@ -293,17 +479,23 @@ export function StudentProfileClient({ id }: StudentProfileClientProps) {
                 </Card>
             </div>
 
-            <div className="flex justify-start">
+            <div className="flex justify-start gap-2">
                 <ViolationLogForm student={student}>
                     <Button>
                         <PlusCircle className="mr-2 h-4 w-4" />
                         Catat Pelanggaran
                     </Button>
                 </ViolationLogForm>
+                <AttendanceForm student={student}>
+                    <Button variant="outline">
+                        <PlusCircle className="mr-2 h-4 w-4" />
+                        Tambah Absensi
+                    </Button>
+                </AttendanceForm>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                <div className="lg:col-span-2">
+                <div className="lg:col-span-2 space-y-4">
                     <Card>
                         <CardHeader>
                             <CardTitle>Riwayat Pelanggaran</CardTitle>
@@ -311,7 +503,10 @@ export function StudentProfileClient({ id }: StudentProfileClientProps) {
                         <CardContent>
                             {violationsLoading ? (
                                 <div className="flex items-center justify-center h-48">
-                                    <div className="w-8 h-8 border-4 border-gray-200 rounded-full animate-spin" style={{ borderTopColor: 'black' }} />
+                                    <div
+                                        className="w-8 h-8 border-4 border-gray-200 rounded-full animate-spin"
+                                        style={{ borderTopColor: 'black' }}
+                                    />
                                 </div>
                             ) : (
                                 <Table>
@@ -331,10 +526,14 @@ export function StudentProfileClient({ id }: StudentProfileClientProps) {
                                             currentViolations.map((v) => (
                                                 <TableRow key={v.id}>
                                                     <TableCell>
-                                                        {new Date(v.tanggal_terjadi).toLocaleDateString('id-ID')}
+                                                        {new Date(
+                                                            v.tanggal_terjadi
+                                                        ).toLocaleDateString('id-ID')}
                                                     </TableCell>
                                                     <TableCell>
-                                                        <Badge variant="secondary">{v.jenis_pelanggaran}</Badge>
+                                                        <Badge variant="secondary">
+                                                            {v.jenis_pelanggaran}
+                                                        </Badge>
                                                     </TableCell>
                                                     <TableCell>{v.catatan}</TableCell>
                                                     <TableCell className="text-right font-medium">
@@ -374,7 +573,9 @@ export function StudentProfileClient({ id }: StudentProfileClientProps) {
                                                                 </ViolationLogForm>
                                                                 {canPerformDelete && (
                                                                     <DeleteConfirmationDialog
-                                                                        onConfirm={() => handleDelete(v.id)}
+                                                                        onConfirm={() =>
+                                                                            handleDelete(v.id)
+                                                                        }
                                                                     >
                                                                         <DropdownMenuItem
                                                                             onSelect={(e) =>

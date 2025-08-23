@@ -25,6 +25,7 @@ import {
     PanelLeftOpen,
     MoreVertical,
     TextQuote,
+    ClipboardCheck,
 } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { Button } from '../ui/button';
@@ -61,6 +62,11 @@ const menuItems = [
         href: '/teachers',
         label: 'Guru',
         icon: User,
+    },
+    {
+        href: '/attendance',
+        label: 'Absensi',
+        icon: ClipboardCheck,
     },
     {
         href: '/violation-types',
