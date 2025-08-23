@@ -199,4 +199,3 @@ export function AttendanceForm({ children, student, attendance }: AttendanceForm
         </Dialog>
     );
 }
-}
