@@ -20,6 +20,7 @@ import { useToast } from '@/hooks/use-toast';
 import type { Student } from '@/lib/data';
 import { DatePicker } from './ui/date-picker';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { useSWRConfig } from 'swr';
 
 const formSchema = z.object({
     studentId: z.string(),
@@ -29,21 +30,25 @@ const formSchema = z.object({
     status: z.enum(['Hadir', 'Sakit', 'Alpha'], { required_error: 'Status harus dipilih.' }),
 });
 
+type AttendanceFormValues = z.infer<typeof formSchema>;
+
 type AttendanceFormProps = {
     children: React.ReactNode;
     student: Student;
+    attendance?: any; // For edit mode
 };
 
-export function AttendanceForm({ children, student }: AttendanceFormProps) {
+export function AttendanceForm({ children, student, attendance }: AttendanceFormProps) {
     const [open, setOpen] = useState(false);
     const { toast } = useToast();
+    const { mutate } = useSWRConfig();
 
-    const form = useForm<z.infer<typeof formSchema>>({
+    const form = useForm<AttendanceFormValues>({
         resolver: zodResolver(formSchema),
         defaultValues: {
-            studentId: student.id,
-            studentName: student.name,
-            studentNis: student.nis,
+            studentId: student?.id?.toString() || '',
+            studentName: student?.nama_lengkap || '',
+            studentNis: student?.nis?.toString() || '',
             date: new Date(),
             status: undefined,
         },
@@ -51,25 +56,72 @@ export function AttendanceForm({ children, student }: AttendanceFormProps) {
 
     useEffect(() => {
         if (open) {
-            form.reset({
-                studentId: student.id,
-                studentName: student.name,
-                studentNis: student.nis,
-                date: new Date(),
-                status: undefined,
+            if (attendance) {
+                // Edit mode
+                form.reset({
+                    studentId: attendance.studentId?.toString() || student?.id?.toString() || '',
+                    studentName: attendance.studentName || student?.nama_lengkap || '',
+                    studentNis: attendance.studentNis?.toString() || student?.nis?.toString() || '',
+                    date: attendance.date ? new Date(attendance.date) : new Date(),
+                    status: attendance.status || undefined,
+                });
+            } else {
+                // Create mode
+                form.reset({
+                    studentId: student?.id?.toString() || '',
+                    studentName: student?.nama_lengkap || '',
+                    studentNis: student?.nis?.toString() || '',
+                    date: new Date(),
+                    status: undefined,
+                });
+            }
+        }
+    }, [open, student, attendance, form]);
+
+    async function onSubmit(values: AttendanceFormValues) {
+        try {
+            const url = attendance 
+                ? `/api/attendances/${attendance.id}` 
+                : '/api/attendances';
+                
+            const method = attendance ? 'PUT' : 'POST';
+
+            const response = await fetch(url, {
+                method,
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    ...values,
+                    studentId: parseInt(values.studentId),
+                    date: values.date.toISOString().split('T')[0], // Format as YYYY-MM-DD
+                }),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || `Gagal ${attendance ? 'mengedit' : 'menambah'} absensi.`);
+            }
+
+            toast({
+                title: 'Sukses',
+                description: `Absensi untuk ${values.studentName} pada tanggal ${values.date.toLocaleDateString()} berhasil ${attendance ? 'diedit' : 'dicatat'}.`,
+            });
+
+            // Refresh the attendance data
+            mutate((key: string) => typeof key === 'string' && key.startsWith('/api/attendances'));
+            
+            setOpen(false);
+        } catch (error) {
+            toast({
+                title: 'Gagal',
+                description:
+                    error instanceof Error
+                        ? error.message
+                        : `Terjadi kesalahan saat ${attendance ? 'mengedit' : 'menambah'} absensi.`,
+                variant: 'destructive',
             });
         }
-    }, [open, student, form]);
-
-    function onSubmit(values: z.infer<typeof formSchema>) {
-        console.log(values);
-        toast({
-            title: 'Sukses',
-            description: `Absensi untuk ${
-                student.name
-            } pada tanggal ${values.date.toLocaleDateString()} berhasil dicatat.`,
-        });
-        setOpen(false);
     }
 
     return (
@@ -79,20 +131,24 @@ export function AttendanceForm({ children, student }: AttendanceFormProps) {
             </DialogTrigger>
             <DialogContent className="sm:max-w-[425px]">
                 <DialogHeader>
-                    <DialogTitle className="font-headline">Formulir Absensi Harian</DialogTitle>
+                    <DialogTitle className="font-headline">
+                        {attendance ? 'Edit Absensi' : 'Formulir Absensi Harian'}
+                    </DialogTitle>
                     <DialogDescription>
-                        Catat status kehadiran harian untuk siswa yang dipilih.
+                        {attendance 
+                            ? 'Edit status kehadiran harian untuk siswa yang dipilih.' 
+                            : 'Catat status kehadiran harian untuk siswa yang dipilih.'}
                     </DialogDescription>
                 </DialogHeader>
                 <Form {...form}>
                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                         <div className="space-y-2">
-                            <Label>Nama Siswa</Label>
-                            <Input value={student.name} disabled />
+                            <FormLabel>Nama Siswa</FormLabel>
+                            <Input value={student?.nama_lengkap} disabled />
                         </div>
                         <div className="space-y-2">
-                            <Label>NIS Siswa</Label>
-                            <Input value={student.nis} disabled />
+                            <FormLabel>NIS Siswa</FormLabel>
+                            <Input value={student?.nis} disabled />
                         </div>
                         <FormField
                             control={form.control}
@@ -133,11 +189,14 @@ export function AttendanceForm({ children, student }: AttendanceFormProps) {
                             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
                                 Batal
                             </Button>
-                            <Button type="submit">Simpan</Button>
+                            <Button type="submit">
+                                {attendance ? 'Simpan Perubahan' : 'Simpan'}
+                            </Button>
                         </DialogFooter>
                     </form>
                 </Form>
             </DialogContent>
         </Dialog>
     );
+}
 }

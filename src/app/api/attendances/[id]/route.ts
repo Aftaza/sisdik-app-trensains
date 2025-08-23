@@ -81,8 +81,6 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
         }
 
         return NextResponse.json(data);
-    } catch (error) {
-        console.error(error);
-        return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
+        json({ message: 'Internal server error' }, { status: 500 });
     }
 }

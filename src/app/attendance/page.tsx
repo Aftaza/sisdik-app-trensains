@@ -8,13 +8,11 @@ import {
     TableHeader,
     TableRow,
 } from '@/components/ui/table';
-import { monthlyAttendanceData, students } from '@/lib/data';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight, Download, PlusCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState, useMemo } from 'react';
-import { DeleteConfirmationDialog } from '@/components/delete-confirmation-dialog';
 import { Progress } from '@/components/ui/progress';
 import {
     Select,
@@ -29,6 +27,7 @@ import Link from 'next/link';
 import RootLayout from '../dashboard/layout';
 import useSWR from 'swr';
 import { fetcher } from '@/lib/fetcher';
+import { AttendanceMonthly, Classes } from '@/lib/data';
 
 const ROWS_PER_PAGE = 10;
 
@@ -37,14 +36,16 @@ const getMonthOptions = () => {
     const now = new Date();
     for (let i = 0; i < 3; i++) {
         const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-        const value = d.toISOString().substring(0, 7); // "YYYY-MM"
+        const year = d.getFullYear();
+        const month = d.getMonth() + 1;
+        const value = `${year}-${month}`; // "YYYY-MM"
         const label = d.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
         options.push({ value, label });
     }
     return options;
 };
 
-export function AttendanceClient() {
+export default function AttendanceClient() {
     const router = useRouter();
     const [currentPage, setCurrentPage] = useState(1);
     const monthOptions = useMemo(() => getMonthOptions(), []);
@@ -53,18 +54,25 @@ export function AttendanceClient() {
     const [isExporting, setIsExporting] = useState(false);
     const { toast } = useToast();
     
-    const { data: classData, isLoading: classLoading } = useSWR('/api/classes', fetcher);
-    const { data: monthlyAttendanceData, isLoading: attendanceLoading, mutate } = useSWR('/api/classes', fetcher);
+    const { data: classData, isLoading: classLoading } = useSWR<Classes[]>('/api/classes', fetcher);
+    const { data: monthlyAttendanceData, isLoading: attendanceLoading, error: attendanceError } = useSWR<AttendanceMonthly[]>(
+        selectedMonth ? `/api/attendances/get-month/${selectedMonth}` : null, 
+        fetcher
+    );
 
-    const classOptions = ['Semua Kelas', ...Array.from(new Set(students.map((s) => s.class)))];
+    const classOptions = useMemo(() => {
+        if (!classData) return ['Semua Kelas'];
+        return ['Semua Kelas', ...classData.map((cls) => cls.nama_kelas)];
+    }, [classData]);
 
     const filteredAttendance = useMemo(() => {
-        let filtered = monthlyAttendanceData.filter((att) => att.month === selectedMonth);
+        if (!monthlyAttendanceData) return [];
+        let filtered = [...monthlyAttendanceData];
         if (selectedClass !== 'Semua Kelas') {
-            filtered = filtered.filter((att) => att.class === selectedClass);
+            filtered = filtered.filter((att) => att.kelas === selectedClass);
         }
         return filtered;
-    }, [selectedMonth, selectedClass]);
+    }, [monthlyAttendanceData, selectedClass]);
 
     const totalPages = Math.ceil(filteredAttendance.length / ROWS_PER_PAGE);
     const startIndex = (currentPage - 1) * ROWS_PER_PAGE;
@@ -84,7 +92,7 @@ export function AttendanceClient() {
         try {
             const monthLabel = monthOptions.find((opt) => opt.value === selectedMonth)?.label;
 
-            const response = await fetch('/attendance/export', {
+            const response = await fetch('/api/attendances/export', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -148,6 +156,96 @@ export function AttendanceClient() {
         setCurrentPage(1); // Reset to first page when class changes
     };
 
+    if (classLoading || attendanceLoading) {
+        return (
+            <RootLayout>
+                <div className="flex flex-col gap-4">
+                    <div className="flex items-center justify-between">
+                        <h1 className="text-3xl font-bold font-headline">Rekap Absensi Siswa</h1>
+                        <div className="flex items-center gap-2">
+                            <Button asChild variant="outline">
+                                <Link href="/attendance/import">
+                                    <PlusCircle className="mr-2 h-4 w-4" />
+                                    Tambah Absensi
+                                </Link>
+                            </Button>
+                            <Button disabled>
+                                <Download className="mr-2 h-4 w-4" />
+                                Ekspor PDF
+                            </Button>
+                        </div>
+                    </div>
+                    <Card>
+                        <CardContent className="flex flex-col gap-5 items-center justify-center h-64">
+                            <Select value={selectedMonth} onValueChange={handleMonthChange}>
+                                <SelectTrigger className="w-[200px]">
+                                    <SelectValue placeholder="Pilih bulan" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {monthOptions.map((opt) => (
+                                        <SelectItem key={opt.value} value={opt.value}>
+                                            {opt.label}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <div className="text-center">
+                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
+                                <p className="mt-2 text-muted-foreground">Memuat data...</p>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+            </RootLayout>
+        );
+    }
+
+    if (attendanceError) {
+        return (
+            <RootLayout>
+                <div className="flex flex-col gap-4">
+                    <div className="flex items-center justify-between">
+                        <h1 className="text-3xl font-bold font-headline">Rekap Absensi Siswa</h1>
+                        <div className="flex items-center gap-2">
+                            <Button asChild variant="outline">
+                                <Link href="/attendance/import">
+                                    <PlusCircle className="mr-2 h-4 w-4" />
+                                    Tambah Absensi
+                                </Link>
+                            </Button>
+                            <Button onClick={handleExport} disabled={isExporting}>
+                                {isExporting ? 'Mengekspor...' : <Download className="mr-2 h-4 w-4" />}
+                                Ekspor PDF
+                            </Button>
+                        </div>
+                    </div>
+                    <Card>
+                        <CardContent className="flex flex-col gap-5 items-center justify-center h-64">
+                            <Select value={selectedMonth} onValueChange={handleMonthChange}>
+                                <SelectTrigger className="w-[200px]">
+                                    <SelectValue placeholder="Pilih bulan" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {monthOptions.map((opt) => (
+                                        <SelectItem key={opt.value} value={opt.value}>
+                                            {opt.label}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <div className="text-center">
+                                <p className="text-destructive">Gagal memuat data absensi atau data tidak ada.</p>
+                                <p className="text-muted-foreground text-sm mt-1">
+                                    Silakan coba lagi nanti.
+                                </p>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+            </RootLayout>
+        );
+    }
+
     return (
         <RootLayout>
             <div className="flex flex-col gap-4">
@@ -160,7 +258,7 @@ export function AttendanceClient() {
                                 Tambah Absensi
                             </Link>
                         </Button>
-                        <Button onClick={handleExport} disabled={isExporting}>
+                        <Button onClick={handleExport} disabled={isExporting || filteredAttendance.length === 0}>
                             {isExporting ? 'Mengekspor...' : <Download className="mr-2 h-4 w-4" />}
                             Ekspor PDF
                         </Button>
@@ -214,40 +312,40 @@ export function AttendanceClient() {
                             <TableBody>
                                 {currentAttendance.length > 0 ? (
                                     currentAttendance.map((att) => (
-                                        <TableRow key={att.id}>
+                                        <TableRow key={att.nis_siswa}>
                                             <TableCell>
-                                                {new Date(att.month).toLocaleDateString('id-ID', {
+                                                {new Date(att.tanggal).toLocaleDateString('id-ID', {
                                                     month: 'long',
                                                     year: 'numeric',
                                                 })}
                                             </TableCell>
-                                            <TableCell>{att.studentNis}</TableCell>
+                                            <TableCell>{att.nis_siswa}</TableCell>
                                             <TableCell
                                                 className="font-medium cursor-pointer hover:underline"
                                                 onClick={() =>
-                                                    router.push(`/students/${att.studentId}`)
+                                                    router.push(`/students/${att.nis_siswa}`)
                                                 }
                                             >
-                                                {att.studentName}
+                                                {att.nama_siswa}
                                             </TableCell>
-                                            <TableCell>{att.class}</TableCell>
+                                            <TableCell>{att.kelas}</TableCell>
                                             <TableCell>
                                                 <div className="flex items-center gap-2">
                                                     <span className="text-sm font-medium w-24">
-                                                        {att.present}/{att.totalDays} hari
+                                                        {att.hadir}/{att.total_hari} hari
                                                     </span>
                                                     <Progress
                                                         value={calculatePercentage(
-                                                            att.present,
-                                                            att.totalDays
+                                                            att.hadir,
+                                                            att.total_hari
                                                         )}
                                                         className="w-24 h-2"
                                                     />
                                                     <span className="text-xs text-muted-foreground">
                                                         (
                                                         {calculatePercentage(
-                                                            att.present,
-                                                            att.totalDays
+                                                            att.hadir,
+                                                            att.total_hari
                                                         ).toFixed(0)}
                                                         %)
                                                     </span>
@@ -256,19 +354,25 @@ export function AttendanceClient() {
                                             <TableCell>
                                                 <div className="flex gap-1">
                                                     <Badge
-                                                        variant="secondary"
-                                                        className="bg-green-100 text-green-800"
+                                                        variant="success"
+                                                        className="bg-green-100 text-green-800 text-center"
                                                     >
-                                                        {att.present} Hadir
+                                                        {att.hadir} Hadir
+                                                    </Badge>
+                                                    <Badge
+                                                        variant="warning"
+                                                        className="bg-yellow-100 text-yellow-800 text-center"
+                                                    >
+                                                        {att.sakit} Sakit
                                                     </Badge>
                                                     <Badge
                                                         variant="secondary"
-                                                        className="bg-yellow-100 text-yellow-800"
+                                                        className='text-center'
                                                     >
-                                                        {att.sick} Sakit
+                                                        {att.izin} Izin
                                                     </Badge>
-                                                    <Badge variant="destructive">
-                                                        {att.absent} Alpha
+                                                    <Badge variant="destructive" className='text-center'>
+                                                        {att.alpha} Alpha
                                                     </Badge>
                                                 </div>
                                             </TableCell>

@@ -40,19 +40,32 @@ export type Sanction = {
     end_poin: number;
 };
 
-export type classes = {
+export type Classes = {
     id: number;
     nama_kelas: string;
     wali_kelas: string;
     total_siswa: number;
 }
 
-export type attendance = {
+export type AttendanceDaily = {
     id: number;
     tanggal: string;
     nama_siswa: string;
     nis_siswa: number;
+    kelas: string;
     status_absensi: string;
+}
+
+export type AttendanceMonthly = {
+    nis_siswa: number;
+    nama_siswa: string;
+    kelas: string;
+    tanggal: string;
+    total_hari: number;
+    hadir: number;
+    sakit: number;
+    izin: number;
+    alpha: number;
 }
 
 // export const students: Student[] = [

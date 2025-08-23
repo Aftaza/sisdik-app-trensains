@@ -24,7 +24,7 @@ import useSWR from 'swr';
 import { useSession } from 'next-auth/react';
 import { useToast } from '@/hooks/use-toast';
 import { fetcher } from '@/lib/fetcher';
-import { classes } from '@/lib/data';
+import { Classes } from '@/lib/data';
 import RootLayout from '../dashboard/layout';
 
 const ROWS_PER_PAGE = 5;
@@ -172,7 +172,7 @@ export default function ClassesClient() {
                                         </TableCell>
                                     </TableRow>
                                 ) : (
-                                    currentClasses.map((classItem: classes) => (
+                                    currentClasses.map((classItem: Classes) => (
                                         <TableRow key={classItem.id}>
                                             <TableCell className="font-medium">{classItem?.nama_kelas}</TableCell>
                                             <TableCell>{classItem?.wali_kelas}</TableCell>

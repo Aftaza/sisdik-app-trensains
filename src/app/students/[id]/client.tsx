@@ -35,6 +35,8 @@ import { useToast } from '@/hooks/use-toast';
 import { useSession } from 'next-auth/react';
 import { ViolationLogForm } from '@/components/violation-log-form';
 import { AttendanceForm } from '@/components/attendance-form';
+import { MonthlyAttendance, DailyAttendance } from '@/lib/attendance-types';
+import { Progress } from '@/components/ui/progress';
 
 type StudentProfileClientProps = {
     id: string;
@@ -185,14 +187,125 @@ function SanctionsCard({ studentId }: { studentId: string | undefined }) {
     );
 }
 
+function AttendanceSummaryCard({ studentId }: { studentId: string }) {
+    const { data: attendanceData, error, isLoading } = useSWR<MonthlyAttendance[]>(
+        studentId ? `/api/attendances?nis=${studentId}` : null,
+        fetcher
+    );
+    const { toast } = useToast();
+
+    const calculatePercentage = (present: number, total: number) => {
+        if (total === 0) return 0;
+        return (present / total) * 100;
+    };
+
+    if (isLoading) {
+        return (
+            <Card>
+                <CardHeader>
+                    <CardTitle>Rekap Absensi</CardTitle>
+                </CardHeader>
+                <CardContent className="flex items-center justify-center h-48">
+                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                </CardContent>
+            </Card>
+        );
+    }
+
+    if (error || !attendanceData || attendanceData.length === 0) {
+        return (
+            <Card>
+                <CardHeader>
+                    <CardTitle>Rekap Absensi</CardTitle>
+                </CardHeader>
+                <CardContent className="text-center text-muted-foreground p-6">
+                    Data tidak ditemukan.
+                </CardContent>
+            </Card>
+        );
+    }
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>Rekap Absensi</CardTitle>
+            </CardHeader>
+            <CardContent>
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Bulan</TableHead>
+                            <TableHead className="text-center">Hadir</TableHead>
+                            <TableHead className="text-center">Sakit</TableHead>
+                            <TableHead className="text-center">Alpha</TableHead>
+                            <TableHead className="text-center">Total</TableHead>
+                            <TableHead className="text-center">Persentase</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {attendanceData.map((att) => (
+                            <TableRow key={att.id}>
+                                <TableCell>
+                                    {new Date(att.month + '-01').toLocaleDateString('id-ID', {
+                                        month: 'long',
+                                        year: 'numeric',
+                                    })}
+                                </TableCell>
+                                <TableCell className="text-center">
+                                    <Badge variant="secondary" className="bg-green-100 text-green-800">
+                                        {att.present}
+                                    </Badge>
+                                </TableCell>
+                                <TableCell className="text-center">
+                                    <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">
+                                        {att.sick}
+                                    </Badge>
+                                </TableCell>
+                                <TableCell className="text-center">
+                                    <Badge variant="destructive">{att.absent}</Badge>
+                                </TableCell>
+                                <TableCell className="text-center font-medium">
+                                    {att.totalDays}
+                                </TableCell>
+                                <TableCell className="text-center">
+                                    <div className="flex flex-col items-center">
+                                        <span className="text-sm font-medium">
+                                            {calculatePercentage(att.present, att.totalDays).toFixed(0)}%
+                                        </span>
+                                        <Progress
+                                            value={calculatePercentage(att.present, att.totalDays)}
+                                            className="w-16 h-1 mt-1"
+                                        />
+                                    </div>
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            </CardContent>
+        </Card>
+    );
+}
+
 function AttendanceLogCard({ studentId }: { studentId: string }) {
     const [currentPage, setCurrentPage] = useState(1);
-    const studentAttendance = dailyAttendanceData.filter((att) => att.studentId === studentId);
+    const [editingAttendance, setEditingAttendance] = useState<DailyAttendance | null>(null);
+    const { data: dailyAttendanceData, error, isLoading, mutate } = useSWR<DailyAttendance[]>(
+        studentId ? `/api/attendances?nis=${studentId}` : null,
+        fetcher
+    );
+    const { toast } = useToast();
+    const { data: session } = useSession();
+    const { data: student } = useSWR<Student>(studentId ? `/api/students/${studentId}` : null, fetcher);
 
-    const totalPages = Math.ceil(studentAttendance.length / ATTENDANCE_PER_PAGE);
+    // Check user roles
+    const userRole = session?.user?.jabatan;
+    const canPerformEditDelete = userRole === 'Admin' || userRole === 'Guru BK';
+
+    const totalPages = Math.ceil((dailyAttendanceData?.length || 0) / ATTENDANCE_PER_PAGE);
     const startIndex = (currentPage - 1) * ATTENDANCE_PER_PAGE;
     const endIndex = startIndex + ATTENDANCE_PER_PAGE;
-    const currentAttendance = studentAttendance.slice(startIndex, endIndex);
+    const currentAttendance = dailyAttendanceData?.slice(startIndex, endIndex) || [];
 
     const handlePreviousPage = () => {
         setCurrentPage((prev) => Math.max(prev - 1, 1));
@@ -202,8 +315,46 @@ function AttendanceLogCard({ studentId }: { studentId: string }) {
         setCurrentPage((prev) => Math.min(prev + 1, totalPages));
     };
 
-    const handleDelete = (attendanceId: string) => {
-        console.log(`Deleting attendance log with id: ${attendanceId}`);
+    const handleDelete = async (attendanceId: number) => {
+        if (!canPerformEditDelete) {
+            toast({
+                title: 'Akses Ditolak',
+                description: 'Hanya admin dan guru BK yang dapat menghapus absensi.',
+                variant: 'destructive',
+            });
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/attendances/${attendanceId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (!response.ok) {
+                const data = await response.json();
+                throw new Error(data.message || 'Gagal menghapus absensi.');
+            }
+
+            toast({
+                title: 'Sukses',
+                description: 'Absensi berhasil dihapus.',
+            });
+
+            // Refresh the attendance data
+            mutate();
+        } catch (error) {
+            toast({
+                title: 'Gagal',
+                description:
+                    error instanceof Error
+                        ? error.message
+                        : 'Terjadi kesalahan saat menghapus absensi.',
+                variant: 'destructive',
+            });
+        }
     };
 
     const getBadgeVariant = (status: DailyAttendance['status']) => {
@@ -218,6 +369,7 @@ function AttendanceLogCard({ studentId }: { studentId: string }) {
                 return 'secondary';
         }
     };
+    
     const getBadgeClass = (status: DailyAttendance['status']) => {
         switch (status) {
             case 'Hadir':
@@ -229,107 +381,149 @@ function AttendanceLogCard({ studentId }: { studentId: string }) {
         }
     };
 
+    if (isLoading) {
+        return (
+            <Card>
+                <CardHeader>
+                    <CardTitle>Log Absensi Harian</CardTitle>
+                </CardHeader>
+                <CardContent className="flex items-center justify-center h-48">
+                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                </CardContent>
+            </Card>
+        );
+    }
+
+    if (error) {
+        return (
+            <Card>
+                <CardHeader>
+                    <CardTitle>Log Absensi Harian</CardTitle>
+                </CardHeader>
+                <CardContent className="text-center text-muted-foreground p-6">
+                    Gagal memuat data absensi.
+                </CardContent>
+            </Card>
+        );
+    }
+
     return (
-        <Card>
-            <CardHeader>
-                <CardTitle>Log Absensi Harian</CardTitle>
-            </CardHeader>
-            <CardContent>
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>Tanggal</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead>
-                                <span className="sr-only">Aksi</span>
-                            </TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {currentAttendance.length > 0 ? (
-                            currentAttendance.map((att) => (
-                                <TableRow key={att.id}>
-                                    <TableCell>
-                                        {new Date(att.date).toLocaleDateString('id-ID', {
-                                            year: 'numeric',
-                                            month: 'long',
-                                            day: 'numeric',
-                                        })}
-                                    </TableCell>
-                                    <TableCell>
-                                        <Badge
-                                            variant={getBadgeVariant(att.status)}
-                                            className={getBadgeClass(att.status)}
-                                        >
-                                            {att.status}
-                                        </Badge>
-                                    </TableCell>
-                                    <TableCell>
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                                <Button
-                                                    aria-haspopup="true"
-                                                    size="icon"
-                                                    variant="ghost"
-                                                >
-                                                    <MoreVertical className="h-4 w-4" />
-                                                    <span className="sr-only">Toggle menu</span>
-                                                </Button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end">
-                                                <DeleteConfirmationDialog
-                                                    onConfirm={() => handleDelete(att.id)}
-                                                >
-                                                    <DropdownMenuItem
-                                                        onSelect={(e) => e.preventDefault()}
-                                                        className="text-destructive focus:text-destructive"
-                                                    >
-                                                        Hapus
-                                                    </DropdownMenuItem>
-                                                </DeleteConfirmationDialog>
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
+        <>
+            <Card>
+                <CardHeader>
+                    <CardTitle>Log Absensi Harian</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Tanggal</TableHead>
+                                <TableHead>Status</TableHead>
+                                {canPerformEditDelete && (
+                                    <TableHead>
+                                        <span className="sr-only">Aksi</span>
+                                    </TableHead>
+                                )}
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {currentAttendance.length > 0 ? (
+                                currentAttendance.map((att) => (
+                                    <TableRow key={att.id}>
+                                        <TableCell>
+                                            {new Date(att.date).toLocaleDateString('id-ID', {
+                                                year: 'numeric',
+                                                month: 'long',
+                                                day: 'numeric',
+                                            })}
+                                        </TableCell>
+                                        <TableCell>
+                                            <Badge
+                                                variant={getBadgeVariant(att.status)}
+                                                className={getBadgeClass(att.status)}
+                                            >
+                                                {att.status}
+                                            </Badge>
+                                        </TableCell>
+                                        {canPerformEditDelete && (
+                                            <TableCell>
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild>
+                                                        <Button
+                                                            aria-haspopup="true"
+                                                            size="icon"
+                                                            variant="ghost"
+                                                        >
+                                                            <MoreVertical className="h-4 w-4" />
+                                                            <span className="sr-only">Toggle menu</span>
+                                                        </Button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent align="end">
+                                                        <AttendanceForm 
+                                                            student={student} 
+                                                            attendance={att}
+                                                        >
+                                                            <DropdownMenuItem
+                                                                onSelect={(e) => e.preventDefault()}
+                                                            >
+                                                                Edit
+                                                            </DropdownMenuItem>
+                                                        </AttendanceForm>
+                                                        <DeleteConfirmationDialog
+                                                            onConfirm={() => handleDelete(att.id)}
+                                                        >
+                                                            <DropdownMenuItem
+                                                                onSelect={(e) => e.preventDefault()}
+                                                                className="text-destructive focus:text-destructive"
+                                                            >
+                                                                Hapus
+                                                            </DropdownMenuItem>
+                                                        </DeleteConfirmationDialog>
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
+                                            </TableCell>
+                                        )}
+                                    </TableRow>
+                                ))
+                            ) : (
+                                <TableRow>
+                                    <TableCell colSpan={canPerformEditDelete ? 3 : 2} className="text-center">
+                                        Tidak ada data absensi.
                                     </TableCell>
                                 </TableRow>
-                            ))
-                        ) : (
-                            <TableRow>
-                                <TableCell colSpan={3} className="text-center">
-                                    Tidak ada data absensi.
-                                </TableCell>
-                            </TableRow>
-                        )}
-                    </TableBody>
-                </Table>
-            </CardContent>
-            {totalPages > 1 && (
-                <CardFooter className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground">
-                        Halaman {currentPage} dari {totalPages}
-                    </span>
-                    <div className="flex items-center gap-2">
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={handlePreviousPage}
-                            disabled={currentPage === 1}
-                        >
-                            <ChevronLeft className="h-4 w-4" />
-                            Sebelumnya
-                        </Button>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={handleNextPage}
-                            disabled={currentPage === totalPages}
-                        >
-                            Berikutnya
-                            <ChevronRight className="h-4 w-4" />
-                        </Button>
-                    </div>
-                </CardFooter>
-            )}
-        </Card>
+                            )}
+                        </TableBody>
+                    </Table>
+                </CardContent>
+                {totalPages > 1 && (
+                    <CardFooter className="flex items-center justify-between">
+                        <span className="text-sm text-muted-foreground">
+                            Halaman {currentPage} dari {totalPages}
+                        </span>
+                        <div className="flex items-center gap-2">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={handlePreviousPage}
+                                disabled={currentPage === 1}
+                            >
+                                <ChevronLeft className="h-4 w-4" />
+                                Sebelumnya
+                            </Button>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={handleNextPage}
+                                disabled={currentPage === totalPages}
+                            >
+                                Berikutnya
+                                <ChevronRight className="h-4 w-4" />
+                            </Button>
+                        </div>
+                    </CardFooter>
+                )}
+            </Card>
+        </>
     );
 }
 
@@ -631,9 +825,11 @@ export function StudentProfileClient({ id }: StudentProfileClientProps) {
                             </CardFooter>
                         )}
                     </Card>
+                    <AttendanceLogCard studentId={id} />
                 </div>
-                <div className="lg:col-span-1">
+                <div className="lg:col-span-1 space-y-4">
                     <SanctionsCard studentId={id} />
+                    <AttendanceSummaryCard studentId={id} />
                 </div>
             </div>
         </div>
