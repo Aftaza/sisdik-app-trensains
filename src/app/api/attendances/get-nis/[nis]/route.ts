@@ -20,7 +20,7 @@ export async function GET(req: NextRequest, { params }: { params: { nis: string 
 
         // Tentukan URL dan parameter secara dinamis untuk mengurangi redundansi
         const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
-        const apiUrl = `${baseUrl}/get-attendence-nis/?nis=${nis}`
+        const apiUrl = `${baseUrl}/get-attendance-nis/?nis=${nis}`
 
         const response = await fetch(apiUrl, {
             method: 'GET',

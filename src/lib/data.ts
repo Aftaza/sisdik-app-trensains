@@ -68,6 +68,19 @@ export type AttendanceMonthly = {
     alpha: number;
 }
 
+export type GroupedAttendance = {
+    id: number;
+    nis_siswa: number;
+    nama_siswa: string;
+    kelas: string;
+    bulanTahun: string;
+    total_hari: number;
+    hadir: number;
+    sakit: number;
+    izin: number;
+    alpha: number;
+}
+
 // export const students: Student[] = [
 //     { nama_lengkap: 'Budi Santoso', nis: 12345, kelas: 'XII-A', total_poin: 120 },
 //     { nama_lengkap: 'Citra Lestari', nis: 12346, kelas: 'XII-B', total_poin: 95 },

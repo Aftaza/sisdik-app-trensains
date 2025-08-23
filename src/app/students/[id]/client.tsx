@@ -20,7 +20,7 @@ import {
     MoreVertical,
     Loader2,
 } from 'lucide-react';
-import type { Sanction, Student, Violation } from '@/lib/data';
+import type { AttendanceDaily, GroupedAttendance, Sanction, Student, Violation } from '@/lib/data';
 import { useEffect, useMemo, useState } from 'react';
 import {
     DropdownMenu,
@@ -34,8 +34,7 @@ import { fetcher } from '@/lib/fetcher';
 import { useToast } from '@/hooks/use-toast';
 import { useSession } from 'next-auth/react';
 import { ViolationLogForm } from '@/components/violation-log-form';
-import { AttendanceForm } from '@/components/attendance-form';
-import { MonthlyAttendance, DailyAttendance } from '@/lib/attendance-types';
+// import { AttendanceForm } from '@/components/attendance-form';
 import { Progress } from '@/components/ui/progress';
 
 type StudentProfileClientProps = {
@@ -188,11 +187,71 @@ function SanctionsCard({ studentId }: { studentId: string | undefined }) {
 }
 
 function AttendanceSummaryCard({ studentId }: { studentId: string }) {
-    const { data: attendanceData, error, isLoading } = useSWR<MonthlyAttendance[]>(
-        studentId ? `/api/attendances?nis=${studentId}` : null,
+    const { data: attendanceData, error, isLoading } = useSWR<AttendanceDaily[]>(
+        studentId ? `/api/attendances/get-nis/${studentId}` : null,
         fetcher
     );
     const { toast } = useToast();
+
+    // Gunakan useMemo untuk mengelompokkan data dan menghindari perhitungan berulang
+    const groupedData = useMemo(() => {
+        if (!attendanceData || attendanceData.length === 0) return [];
+
+        // Kelompokkan data berdasarkan bulan/tahun
+        const grouped: Record<string, GroupedAttendance> = {};
+
+        for (const data of attendanceData) {
+            const { id, nis_siswa, nama_siswa, tanggal, kelas, status_absensi } = data;
+            
+            // Buat key berdasarkan bulan/tahun
+            const date = new Date(tanggal);
+            const bulanTahunKey = `${date.getFullYear()}-${date.getMonth()}`;
+            const bulanTahunDisplay = date.toLocaleDateString('id-ID', {
+                month: 'long',
+                year: 'numeric',
+            });
+
+            if (!grouped[bulanTahunKey]) {
+                grouped[bulanTahunKey] = {
+                    id: id,
+                    nis_siswa: nis_siswa,
+                    nama_siswa: nama_siswa,
+                    kelas: kelas,
+                    bulanTahun: bulanTahunDisplay,
+                    total_hari: 0,
+                    hadir: 0,
+                    sakit: 0,
+                    izin: 0,
+                    alpha: 0
+                };
+            }
+
+            // Tambahkan 1 ke total_hari
+            grouped[bulanTahunKey].total_hari += 1;
+
+            // Tambahkan 1 ke status kehadiran yang sesuai
+            const status = status_absensi.toLowerCase();
+            switch (status) {
+                case 'hadir':
+                    grouped[bulanTahunKey].hadir += 1;
+                    break;
+                case 'sakit':
+                    grouped[bulanTahunKey].sakit += 1;
+                    break;
+                case 'izin':
+                    grouped[bulanTahunKey].izin += 1;
+                    break;
+                case 'alpha':
+                    grouped[bulanTahunKey].alpha += 1;
+                    break;
+                default:
+                    // Handle status tidak dikenal jika diperlukan
+                    break;
+            }
+        }
+
+        return Object.values(grouped);
+    }, [attendanceData]);
 
     const calculatePercentage = (present: number, total: number) => {
         if (total === 0) return 0;
@@ -212,7 +271,20 @@ function AttendanceSummaryCard({ studentId }: { studentId: string }) {
         );
     }
 
-    if (error || !attendanceData || attendanceData.length === 0) {
+    if (error) {
+        return (
+            <Card>
+                <CardHeader>
+                    <CardTitle>Rekap Absensi</CardTitle>
+                </CardHeader>
+                <CardContent className="text-center text-destructive p-6">
+                    Terjadi kesalahan saat memuat data.
+                </CardContent>
+            </Card>
+        );
+    }
+
+    if (!attendanceData || attendanceData.length === 0 || groupedData.length === 0) {
         return (
             <Card>
                 <CardHeader>
@@ -237,43 +309,46 @@ function AttendanceSummaryCard({ studentId }: { studentId: string }) {
                             <TableHead>Bulan</TableHead>
                             <TableHead className="text-center">Hadir</TableHead>
                             <TableHead className="text-center">Sakit</TableHead>
+                            <TableHead className="text-center">Izin</TableHead>
                             <TableHead className="text-center">Alpha</TableHead>
                             <TableHead className="text-center">Total</TableHead>
                             <TableHead className="text-center">Persentase</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {attendanceData.map((att) => (
+                        {groupedData.map((att) => (
                             <TableRow key={att.id}>
-                                <TableCell>
-                                    {new Date(att.month + '-01').toLocaleDateString('id-ID', {
-                                        month: 'long',
-                                        year: 'numeric',
-                                    })}
+                                <TableCell className="font-medium">
+                                    {att.bulanTahun}
                                 </TableCell>
                                 <TableCell className="text-center">
                                     <Badge variant="secondary" className="bg-green-100 text-green-800">
-                                        {att.present}
+                                        {att.hadir}
                                     </Badge>
                                 </TableCell>
                                 <TableCell className="text-center">
                                     <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">
-                                        {att.sick}
+                                        {att.sakit}
                                     </Badge>
                                 </TableCell>
                                 <TableCell className="text-center">
-                                    <Badge variant="destructive">{att.absent}</Badge>
+                                    <Badge variant="secondary" className="bg-blue-100 text-blue-800">
+                                        {att.izin}
+                                    </Badge>
+                                </TableCell>
+                                <TableCell className="text-center">
+                                    <Badge variant="destructive">{att.alpha}</Badge>
                                 </TableCell>
                                 <TableCell className="text-center font-medium">
-                                    {att.totalDays}
+                                    {att.total_hari}
                                 </TableCell>
                                 <TableCell className="text-center">
                                     <div className="flex flex-col items-center">
                                         <span className="text-sm font-medium">
-                                            {calculatePercentage(att.present, att.totalDays).toFixed(0)}%
+                                            {calculatePercentage(att.hadir, att.total_hari).toFixed(0)}%
                                         </span>
                                         <Progress
-                                            value={calculatePercentage(att.present, att.totalDays)}
+                                            value={calculatePercentage(att.hadir, att.total_hari)}
                                             className="w-16 h-1 mt-1"
                                         />
                                     </div>
@@ -289,9 +364,9 @@ function AttendanceSummaryCard({ studentId }: { studentId: string }) {
 
 function AttendanceLogCard({ studentId }: { studentId: string }) {
     const [currentPage, setCurrentPage] = useState(1);
-    const [editingAttendance, setEditingAttendance] = useState<DailyAttendance | null>(null);
-    const { data: dailyAttendanceData, error, isLoading, mutate } = useSWR<DailyAttendance[]>(
-        studentId ? `/api/attendances?nis=${studentId}` : null,
+    const [editingAttendance, setEditingAttendance] = useState<AttendanceDaily | null>(null);
+    const { data: dailyAttendanceData, error, isLoading, mutate } = useSWR<AttendanceDaily[]>(
+        studentId ? `/api/attendances/get-nis/${studentId}` : null,
         fetcher
     );
     const { toast } = useToast();
@@ -357,7 +432,7 @@ function AttendanceLogCard({ studentId }: { studentId: string }) {
         }
     };
 
-    const getBadgeVariant = (status: DailyAttendance['status']) => {
+    const getBadgeVariant = (status: AttendanceDaily['status_absensi']) => {
         switch (status) {
             case 'Hadir':
                 return 'secondary';
@@ -370,7 +445,7 @@ function AttendanceLogCard({ studentId }: { studentId: string }) {
         }
     };
     
-    const getBadgeClass = (status: DailyAttendance['status']) => {
+    const getBadgeClass = (status: AttendanceDaily['status_absensi']) => {
         switch (status) {
             case 'Hadir':
                 return 'bg-green-100 text-green-800';
@@ -431,7 +506,7 @@ function AttendanceLogCard({ studentId }: { studentId: string }) {
                                 currentAttendance.map((att) => (
                                     <TableRow key={att.id}>
                                         <TableCell>
-                                            {new Date(att.date).toLocaleDateString('id-ID', {
+                                            {new Date(att.tanggal).toLocaleDateString('id-ID', {
                                                 year: 'numeric',
                                                 month: 'long',
                                                 day: 'numeric',
@@ -439,10 +514,10 @@ function AttendanceLogCard({ studentId }: { studentId: string }) {
                                         </TableCell>
                                         <TableCell>
                                             <Badge
-                                                variant={getBadgeVariant(att.status)}
-                                                className={getBadgeClass(att.status)}
+                                                variant={getBadgeVariant(att.status_absensi)}
+                                                className={getBadgeClass(att.status_absensi)}
                                             >
-                                                {att.status}
+                                                {att.status_absensi}
                                             </Badge>
                                         </TableCell>
                                         {canPerformEditDelete && (
@@ -459,16 +534,16 @@ function AttendanceLogCard({ studentId }: { studentId: string }) {
                                                         </Button>
                                                     </DropdownMenuTrigger>
                                                     <DropdownMenuContent align="end">
-                                                        <AttendanceForm 
+                                                        {/* <AttendanceForm 
                                                             student={student} 
                                                             attendance={att}
-                                                        >
+                                                        > */}
                                                             <DropdownMenuItem
                                                                 onSelect={(e) => e.preventDefault()}
                                                             >
                                                                 Edit
                                                             </DropdownMenuItem>
-                                                        </AttendanceForm>
+                                                        {/* </AttendanceForm> */}
                                                         <DeleteConfirmationDialog
                                                             onConfirm={() => handleDelete(att.id)}
                                                         >
@@ -680,12 +755,12 @@ export function StudentProfileClient({ id }: StudentProfileClientProps) {
                         Catat Pelanggaran
                     </Button>
                 </ViolationLogForm>
-                <AttendanceForm student={student}>
+                {/* <AttendanceForm student={student}> */}
                     <Button variant="outline">
                         <PlusCircle className="mr-2 h-4 w-4" />
                         Tambah Absensi
                     </Button>
-                </AttendanceForm>
+                {/* </AttendanceForm> */}
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
