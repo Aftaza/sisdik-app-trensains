@@ -91,6 +91,11 @@ export default function AttendanceClient() {
         setIsExporting(true);
         try {
             const monthLabel = monthOptions.find((opt) => opt.value === selectedMonth)?.label;
+            const waliKelas = classData?.find((opt) => opt.nama_kelas === selectedClass)?.wali_kelas;
+            
+            if (selectedClass === 'Semua Kelas') {
+                throw new Error('Gagal membuat PDF. Kelas Harus Dipilih.');
+            }
 
             const response = await fetch('/api/attendances/export', {
                 method: 'POST',
@@ -101,40 +106,49 @@ export default function AttendanceClient() {
                     data: filteredAttendance,
                     month: monthLabel,
                     className: selectedClass,
+                    waliKelas: waliKelas,
                 }),
             });
 
             if (!response.ok) {
+                const errorText = await response.text();
+                console.error('Server error:', errorText);
                 throw new Error('Gagal membuat PDF. Silakan coba lagi.');
             }
 
+            // Gunakan response.blob() langsung
             const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            const fileName = `laporan-absensi-${selectedClass.replace(
-                ' ',
-                '-'
-            )}-${selectedMonth}.pdf`;
-            a.download = fileName;
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-            window.URL.revokeObjectURL(url);
+            
+            // Buat URL dan download menggunakan window.open
+            const url = URL.createObjectURL(blob);
+            
+            // Method 1: Gunakan window.open untuk download
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `rekap-absensi-${selectedClass.replace(/[^a-zA-Z0-9]/g, '-')}-${selectedMonth}.pdf`;
+            
+            // Untuk Safari compatibility
+            link.target = '_blank';
+            link.rel = 'noopener noreferrer';
+            
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            // Cleanup
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
 
             toast({
                 title: 'Ekspor Berhasil',
-                description: `Data absensi telah berhasil diekspor sebagai ${fileName}`,
+                description: 'Data absensi telah berhasil diekspor',
             });
+
         } catch (error) {
             console.error('Export error:', error);
             toast({
                 variant: 'destructive',
                 title: 'Ekspor Gagal',
-                description:
-                    error instanceof Error
-                        ? error.message
-                        : 'Terjadi kesalahan saat mengekspor data.',
+                description: error instanceof Error ? error.message : 'Terjadi kesalahan saat mengekspor data.',
             });
         } finally {
             setIsExporting(false);
@@ -258,8 +272,8 @@ export default function AttendanceClient() {
                             </Link>
                         </Button>
                         <Button onClick={handleExport} disabled={isExporting || filteredAttendance.length === 0}>
-                            {isExporting ? 'Mengekspor...' : <Download className="mr-2 h-4 w-4" />}
-                            Ekspor PDF
+                            <Download className="mr-2 h-4 w-4" />
+                            {isExporting ? 'Mengekspor...' : 'Ekspor PDF'}
                         </Button>
                     </div>
                 </div>
