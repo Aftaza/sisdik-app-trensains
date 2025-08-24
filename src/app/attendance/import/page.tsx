@@ -53,7 +53,9 @@ const formSchema = z.object({
 });
 
 type CsvRow = {
-    nis: string;
+    tanggal: number;
+    nis: number;
+    nama_siswa: string;
     status_absensi: string;
 };
 
@@ -121,7 +123,7 @@ export default function ImportAttendanceClient() {
     // Fungsi untuk memvalidasi struktur CSV
     const validateCsvStructure = (data: any[], fields: string[] | undefined): boolean => {
         if (!fields) return false;
-        return fields.includes('nis') && fields.includes('status_absensi');
+        return fields.includes('tanggal') && fields.includes('nis') && fields.includes('nama_siswa') && fields.includes('status_absensi');
     };
 
     const onSubmit = async (values: z.infer<typeof formSchema>) => {
@@ -142,7 +144,7 @@ export default function ImportAttendanceClient() {
                         // Validasi struktur CSV
                         if (!validateCsvStructure(results.data, results.meta.fields)) {
                             return reject(
-                                new Error('Berkas CSV harus memiliki kolom "nis" dan "status_absensi".')
+                                new Error('Berkas CSV harus memiliki kolom seperti template.')
                             );
                         }
                         
@@ -155,7 +157,7 @@ export default function ImportAttendanceClient() {
 
                         // Validasi format data
                         const invalidRows = results.data.filter(
-                            row => !row.nis || !row.status_absensi
+                            row => !row.tanggal || !row.nis || !row.nama_siswa || !row.status_absensi
                         );
                         if (invalidRows.length > 0) {
                             return reject(

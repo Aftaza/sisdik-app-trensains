@@ -166,7 +166,7 @@ export default function AttendanceClient() {
                             <Button asChild variant="outline">
                                 <Link href="/attendance/import">
                                     <PlusCircle className="mr-2 h-4 w-4" />
-                                    Tambah Absensi
+                                    Tambah Absensi CSV
                                 </Link>
                             </Button>
                             <Button disabled>
@@ -210,11 +210,10 @@ export default function AttendanceClient() {
                             <Button asChild variant="outline">
                                 <Link href="/attendance/import">
                                     <PlusCircle className="mr-2 h-4 w-4" />
-                                    Tambah Absensi
+                                    Tambah Absensi CSV
                                 </Link>
                             </Button>
-                            <Button onClick={handleExport} disabled={isExporting}>
-                                {isExporting ? 'Mengekspor...' : <Download className="mr-2 h-4 w-4" />}
+                            <Button disabled>
                                 Ekspor PDF
                             </Button>
                         </div>
@@ -255,7 +254,7 @@ export default function AttendanceClient() {
                         <Button asChild variant="outline">
                             <Link href="/attendance/import">
                                 <PlusCircle className="mr-2 h-4 w-4" />
-                                Tambah Absensi
+                                Tambah Absensi CSV
                             </Link>
                         </Button>
                         <Button onClick={handleExport} disabled={isExporting || filteredAttendance.length === 0}>
