@@ -17,36 +17,38 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from './ui/input';
 import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import type { Student } from '@/lib/data';
+import type { AttendanceDaily, Student } from '@/lib/data';
 import { DatePicker } from './ui/date-picker';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { useSWRConfig } from 'swr';
+import { Loader2 } from 'lucide-react';
 
 const formSchema = z.object({
     studentId: z.string(),
     studentName: z.string(),
     studentNis: z.string(),
     date: z.date({ required_error: 'Tanggal harus diisi.' }),
-    status: z.enum(['Hadir', 'Sakit', 'Alpha'], { required_error: 'Status harus dipilih.' }),
+    status: z.enum(['Hadir', 'Sakit', 'Izin', 'Alpha'], { required_error: 'Status harus dipilih.' }),
 });
 
 type AttendanceFormValues = z.infer<typeof formSchema>;
 
 type AttendanceFormProps = {
     children: React.ReactNode;
-    student: Student;
-    attendance?: any; // For edit mode
+    student: Student | undefined;
+    attendance?: AttendanceDaily; // For edit mode
 };
 
 export function AttendanceForm({ children, student, attendance }: AttendanceFormProps) {
     const [open, setOpen] = useState(false);
     const { toast } = useToast();
     const { mutate } = useSWRConfig();
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const form = useForm<AttendanceFormValues>({
         resolver: zodResolver(formSchema),
         defaultValues: {
-            studentId: student?.id?.toString() || '',
+            studentId: student?.nis?.toString() || '',
             studentName: student?.nama_lengkap || '',
             studentNis: student?.nis?.toString() || '',
             date: new Date(),
@@ -56,19 +58,22 @@ export function AttendanceForm({ children, student, attendance }: AttendanceForm
 
     useEffect(() => {
         if (open) {
+            const isValidStatus = (status: string): status is "Hadir" | "Sakit" | "Izin" | "Alpha" => {
+                return ['Hadir', 'Sakit', 'Izin', 'Alpha'].includes(status);
+            };
             if (attendance) {
                 // Edit mode
                 form.reset({
-                    studentId: attendance.studentId?.toString() || student?.id?.toString() || '',
-                    studentName: attendance.studentName || student?.nama_lengkap || '',
-                    studentNis: attendance.studentNis?.toString() || student?.nis?.toString() || '',
-                    date: attendance.date ? new Date(attendance.date) : new Date(),
-                    status: attendance.status || undefined,
+                    studentId: attendance.id?.toString() || student?.nis?.toString() || '',
+                    studentName: attendance.nama_siswa || student?.nama_lengkap || '',
+                    studentNis: attendance.nis_siswa?.toString() || student?.nis?.toString() || '',
+                    date: attendance.tanggal ? new Date(attendance.tanggal) : new Date(),
+                    status: isValidStatus(attendance.status_absensi) ? attendance.status_absensi : undefined,
                 });
             } else {
                 // Create mode
                 form.reset({
-                    studentId: student?.id?.toString() || '',
+                    studentId: student?.nis?.toString() || '',
                     studentName: student?.nama_lengkap || '',
                     studentNis: student?.nis?.toString() || '',
                     date: new Date(),
@@ -79,6 +84,7 @@ export function AttendanceForm({ children, student, attendance }: AttendanceForm
     }, [open, student, attendance, form]);
 
     async function onSubmit(values: AttendanceFormValues) {
+        setIsSubmitting(true);
         try {
             const url = attendance 
                 ? `/api/attendances/${attendance.id}` 
@@ -92,9 +98,11 @@ export function AttendanceForm({ children, student, attendance }: AttendanceForm
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    ...values,
-                    studentId: parseInt(values.studentId),
-                    date: values.date.toISOString().split('T')[0], // Format as YYYY-MM-DD
+                    tanggal: values.date.toISOString(),
+                    nis_siswa: values.studentNis,
+                    nama_siswa: values.studentName,
+                    kelas: student?.kelas,
+                    status_absensi: values.status,
                 }),
             });
 
@@ -121,6 +129,8 @@ export function AttendanceForm({ children, student, attendance }: AttendanceForm
                         : `Terjadi kesalahan saat ${attendance ? 'mengedit' : 'menambah'} absensi.`,
                 variant: 'destructive',
             });
+        } finally {
+            setIsSubmitting(false);
         }
     }
 
@@ -178,6 +188,7 @@ export function AttendanceForm({ children, student, attendance }: AttendanceForm
                                         <SelectContent>
                                             <SelectItem value="Hadir">Hadir</SelectItem>
                                             <SelectItem value="Sakit">Sakit</SelectItem>
+                                            <SelectItem value="Izin">Izin</SelectItem>
                                             <SelectItem value="Alpha">Alpha</SelectItem>
                                         </SelectContent>
                                     </Select>
@@ -190,7 +201,15 @@ export function AttendanceForm({ children, student, attendance }: AttendanceForm
                                 Batal
                             </Button>
                             <Button type="submit">
-                                {attendance ? 'Simpan Perubahan' : 'Simpan'}
+                                {isSubmitting ? (
+                                        <>
+                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                            Menyimpan...
+                                        </>
+                                    ) : (
+                                        attendance ? 'Simpan Perubahan' : 'Simpan'
+                                    )
+                                }
                             </Button>
                         </DialogFooter>
                     </form>

@@ -43,9 +43,16 @@ export async function GET(req: NextRequest, { params }: { params: { month: strin
 
         // Ambil data dari respons
         const data = await response.json();
-        console.log(data);
+        let finalData = [];
         // Mengembalikan array kosong jika data bukan array
-        const finalData = Array.isArray(data) ? data : [];
+        // Lakukan validasi dan filter data
+        // Pastikan `data` adalah array sebelum menggunakan filter
+        if (Array.isArray(data)) {
+            finalData = data.filter((v) => v && v.nis_siswa);
+        } else {
+            // Jika data bukan array, kembalikan array kosong untuk mencegah error
+            finalData = [];
+        }
 
         return NextResponse.json(finalData);
     } catch (error) {

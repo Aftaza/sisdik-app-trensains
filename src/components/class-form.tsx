@@ -18,7 +18,7 @@ import { Input } from './ui/input';
 import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import type { classes, Teacher } from '@/lib/data';
+import type { Classes, Teacher } from '@/lib/data';
 import useSWR, { useSWRConfig } from 'swr';
 import { fetcher } from '@/lib/fetcher';
 import { Loader2 } from 'lucide-react';
@@ -31,7 +31,7 @@ const formSchema = z.object({
 
 type ClassFormProps = {
     children: React.ReactNode;
-    classData?: classes | undefined;
+    classData?: Classes | undefined;
     mutate?: () => void;
 };
 
@@ -82,7 +82,7 @@ export function ClassForm({ children, classData, mutate }: ClassFormProps) {
         }
         setIsSubmitting(true);
         try {
-            const url = isEditMode ? `/api/classes/${classData?.id}` : '/api/classes';
+            const url = isEditMode ? `/api/C/${classData?.id}` : '/api/C';
             const method = isEditMode ? 'PUT' : 'POST';
             
             const body = {

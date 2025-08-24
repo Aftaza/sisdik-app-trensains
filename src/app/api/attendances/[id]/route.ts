@@ -42,7 +42,6 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
     }
 }
 
-// DELETE method - delete a violation log
 export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
     const { id } = await params;
 
@@ -62,7 +61,7 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
             );
         }
 
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/delete-attendance-student`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/delete-attendence-student`, {
             method: 'DELETE',
             headers: {
                 'Content-Type': 'application/json',
@@ -75,12 +74,14 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
 
         if (!response.ok) {
             return NextResponse.json(
-                { message: data.msg || 'Failed to delete attendance' },
+                { message: data.msg || 'Failed to delete violation log' },
                 { status: response.status }
             );
         }
 
         return NextResponse.json(data);
-        json({ message: 'Internal server error' }, { status: 500 });
+    } catch (error) {
+        console.error(error);
+        return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
     }
 }

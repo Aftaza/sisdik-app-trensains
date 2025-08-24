@@ -34,7 +34,7 @@ import { fetcher } from '@/lib/fetcher';
 import { useToast } from '@/hooks/use-toast';
 import { useSession } from 'next-auth/react';
 import { ViolationLogForm } from '@/components/violation-log-form';
-// import { AttendanceForm } from '@/components/attendance-form';
+import { AttendanceForm } from '@/components/attendance-form';
 import { Progress } from '@/components/ui/progress';
 
 type StudentProfileClientProps = {
@@ -534,16 +534,16 @@ function AttendanceLogCard({ studentId }: { studentId: string }) {
                                                         </Button>
                                                     </DropdownMenuTrigger>
                                                     <DropdownMenuContent align="end">
-                                                        {/* <AttendanceForm 
+                                                        <AttendanceForm 
                                                             student={student} 
                                                             attendance={att}
-                                                        > */}
+                                                        >
                                                             <DropdownMenuItem
                                                                 onSelect={(e) => e.preventDefault()}
                                                             >
                                                                 Edit
                                                             </DropdownMenuItem>
-                                                        {/* </AttendanceForm> */}
+                                                        </AttendanceForm>
                                                         <DeleteConfirmationDialog
                                                             onConfirm={() => handleDelete(att.id)}
                                                         >
@@ -755,12 +755,12 @@ export function StudentProfileClient({ id }: StudentProfileClientProps) {
                         Catat Pelanggaran
                     </Button>
                 </ViolationLogForm>
-                {/* <AttendanceForm student={student}> */}
+                <AttendanceForm student={student}>
                     <Button variant="outline">
                         <PlusCircle className="mr-2 h-4 w-4" />
                         Tambah Absensi
                     </Button>
-                {/* </AttendanceForm> */}
+                </AttendanceForm>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
