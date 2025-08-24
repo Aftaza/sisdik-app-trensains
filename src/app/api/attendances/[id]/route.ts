@@ -61,7 +61,7 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
             );
         }
 
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/delete-attendence-student`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/delete-attendance-student`, {
             method: 'DELETE',
             headers: {
                 'Content-Type': 'application/json',
