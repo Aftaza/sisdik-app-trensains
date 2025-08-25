@@ -51,6 +51,11 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         }
 
+        // Check if user has permission (Admin or Guru BK)
+        if (token.jabatan !== 'Admin' && token.jabatan !== 'Guru BK') {
+            return NextResponse.json({ message: 'Forbidden: Insufficient permissions' }, { status: 403 });
+        }
+
         const body = await req.json();
 
         const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/add-student`, {

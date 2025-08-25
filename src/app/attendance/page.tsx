@@ -188,7 +188,7 @@ export default function AttendanceClient() {
                         <h1 className="text-3xl font-bold font-headline">Rekap Absensi Siswa</h1>
                         <div className="flex items-center gap-2">
                             <Button asChild variant="outline">
-                                <Link href="/attendance/import">
+                                <Link href="/attendance/import" className={hasPermission ? '' : 'hidden'}>
                                     <PlusCircle className="mr-2 h-4 w-4" />
                                     Tambah Absensi CSV
                                 </Link>
@@ -232,7 +232,7 @@ export default function AttendanceClient() {
                         <h1 className="text-3xl font-bold font-headline">Rekap Absensi Siswa</h1>
                         <div className="flex items-center gap-2">
                             <Button asChild variant="outline">
-                                <Link href="/attendance/import">
+                                <Link href="/attendance/import" className={hasPermission ? '' : 'hidden'}>
                                     <PlusCircle className="mr-2 h-4 w-4" />
                                     Tambah Absensi CSV
                                 </Link>

@@ -45,6 +45,7 @@ import useSWR from 'swr';
 import { fetcher } from '@/lib/fetcher';
 import { cn } from '@/lib/utils';
 import type { Student } from '@/lib/data';
+import { useSession } from 'next-auth/react';
 
 const ROWS_PER_PAGE = 10;
 
@@ -60,6 +61,9 @@ export default function StudentsPage() {
     const [classFilter, setClassFilter] = useState('Semua');
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc' | 'none'>('none');
     const { toast } = useToast();
+    const { data: session } = useSession();
+
+    const hasPermission = session?.user?.jabatan === 'Admin' || session?.user?.jabatan === 'Guru BK';
 
     const classOptions = useMemo(() => {
         if (!students) {
@@ -140,6 +144,15 @@ export default function StudentsPage() {
     };
 
     const handleDelete = async (studentId: number) => {
+        if (!hasPermission) {
+            toast({
+                title: "Akses Ditolak",
+                description: "Anda tidak memiliki izin untuk melakukan aksi ini.",
+                variant: "destructive",
+            });
+            return;
+        }
+
         try {
             const response = await fetch(`/api/students/${studentId}`, {
                 method: 'DELETE',
@@ -194,12 +207,14 @@ export default function StudentsPage() {
             <div className="flex flex-col gap-4">
                 <div className="flex items-center justify-between">
                     <h1 className="text-3xl font-bold font-headline">Daftar Siswa</h1>
-                    <StudentForm classOpt={classOptions.filter((opt) => opt !== 'Semua')}>
-                        <Button disabled={isLoading || !classOptions || classOptions.length <= 1}>
-                            <PlusCircle />
-                            Tambah Siswa
-                        </Button>
-                    </StudentForm>
+                    { hasPermission && (
+                        <StudentForm classOpt={classOptions.filter((opt) => opt !== 'Semua')}>
+                            <Button disabled={isLoading || !classOptions || classOptions.length <= 1}>
+                                <PlusCircle />
+                                Tambah Siswa
+                            </Button>
+                        </StudentForm>
+                    )}
                 </div>
 
                 <Card>
@@ -239,22 +254,24 @@ export default function StudentsPage() {
                                             {getSortIcon()}
                                         </Button>
                                     </TableHead>
-                                    <TableHead>
-                                        <span className="sr-only">Aksi</span>
-                                    </TableHead>
+                                    {hasPermission && (
+                                        <TableHead>
+                                            <span className="sr-only">Aksi</span>
+                                        </TableHead>
+                                    )}
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {students === undefined ? (
                                     <TableRow>
-                                        <TableCell colSpan={6} className="text-center py-10">
+                                        <TableCell colSpan={hasPermission ? 6 : 5} className="text-center py-10">
                                             <Loader2 className="h-6 w-6 animate-spin text-primary mx-auto" />
                                             <p className="mt-2">Memuat data siswa...</p>
                                         </TableCell>
                                     </TableRow>
                                 ) : currentStudents.length === 0 ? (
                                     <TableRow>
-                                        <TableCell colSpan={6} className="text-center py-10">
+                                        <TableCell colSpan={hasPermission ? 6 : 5} className="text-center py-10">
                                             Tidak ada data siswa.
                                         </TableCell>
                                     </TableRow>
@@ -303,48 +320,50 @@ export default function StudentsPage() {
                                                     {student.total_poin} Poin
                                                 </Badge>
                                             </TableCell>
-                                            <TableCell className="text-center">
-                                                <DropdownMenu>
-                                                    <DropdownMenuTrigger asChild>
-                                                        <Button
-                                                            aria-haspopup="true"
-                                                            size="icon"
-                                                            variant="ghost"
-                                                        >
-                                                            <MoreVertical className="h-4 w-4" />
-                                                            <span className="sr-only">
-                                                                Toggle menu
-                                                            </span>
-                                                        </Button>
-                                                    </DropdownMenuTrigger>
-                                                    <DropdownMenuContent align="end">
-                                                        <StudentForm
-                                                            student={student}
-                                                            classOpt={classOptions.filter(
-                                                                (opt) => opt !== 'Semua'
-                                                            )}
-                                                        >
-                                                            <DropdownMenuItem
-                                                                onSelect={(e) => e.preventDefault()}
+                                            { hasPermission && (
+                                                <TableCell className="text-center">
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger asChild>
+                                                            <Button
+                                                                aria-haspopup="true"
+                                                                size="icon"
+                                                                variant="ghost"
                                                             >
-                                                                Edit
-                                                            </DropdownMenuItem>
-                                                        </StudentForm>
-                                                        <DeleteConfirmationDialog
-                                                            onConfirm={() =>
-                                                                handleDelete(student.nis)
-                                                            }
-                                                        >
-                                                            <DropdownMenuItem
-                                                                onSelect={(e) => e.preventDefault()}
-                                                                className="text-destructive focus:text-destructive"
+                                                                <MoreVertical className="h-4 w-4" />
+                                                                <span className="sr-only">
+                                                                    Toggle menu
+                                                                </span>
+                                                            </Button>
+                                                        </DropdownMenuTrigger>
+                                                        <DropdownMenuContent align="end">
+                                                            <StudentForm
+                                                                student={student}
+                                                                classOpt={classOptions.filter(
+                                                                    (opt) => opt !== 'Semua'
+                                                                )}
                                                             >
-                                                                Hapus
-                                                            </DropdownMenuItem>
-                                                        </DeleteConfirmationDialog>
-                                                    </DropdownMenuContent>
-                                                </DropdownMenu>
-                                            </TableCell>
+                                                                <DropdownMenuItem
+                                                                    onSelect={(e) => e.preventDefault()}
+                                                                >
+                                                                    Edit
+                                                                </DropdownMenuItem>
+                                                            </StudentForm>
+                                                            <DeleteConfirmationDialog
+                                                                onConfirm={() =>
+                                                                    handleDelete(student.nis)
+                                                                }
+                                                            >
+                                                                <DropdownMenuItem
+                                                                    onSelect={(e) => e.preventDefault()}
+                                                                    className="text-destructive focus:text-destructive"
+                                                                >
+                                                                    Hapus
+                                                                </DropdownMenuItem>
+                                                            </DeleteConfirmationDialog>
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
+                                                </TableCell>
+                                            )}
                                         </TableRow>
                                     ))
                                 )}
