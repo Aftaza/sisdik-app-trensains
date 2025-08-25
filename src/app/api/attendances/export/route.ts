@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import puppeteer from 'puppeteer';
 import type { AttendanceMonthly } from '@/lib/data';
+import { getToken } from 'next-auth/jwt';
 
-function getHtml(data: AttendanceMonthly[], month: string, className: string, waliKelas: string) {
+const secret = process.env.NEXTAUTH_SECRET;
+
+function getHtml(data: AttendanceMonthly[], month: string, className: string, waliKelas: string, pimpinan: string, guruBk: string | undefined) {
     // Format bulan dan tahun dari parameter month (misal: "JULI 2025")
     const [bulan, tahun] = month.split(' ');
     const formattedMonth = `${bulan.charAt(0).toUpperCase() + bulan.slice(1).toLowerCase()} ${tahun}`;
@@ -258,11 +261,11 @@ function getHtml(data: AttendanceMonthly[], month: string, className: string, wa
                     <div class="signature-section">
                         <div class="signature-box">
                             <div class="signature-title">Kepala SMA Trensains Tebuireng</div>
-                            <div class="signature-name">{{namaKepsek}}</div>
+                            <div class="signature-name">${pimpinan}</div>
                         </div>
                         <div class="signature-box">
                             <div class="signature-title">Guru BP/BK</div>
-                            <div class="signature-name">{{namaGuruBK}}</div>
+                            <div class="signature-name">${guruBk || 'Guru Bk'}</div>
                         </div>
                     </div>
 
@@ -414,8 +417,18 @@ async function generatePDFWithRetry(htmlContent: string, maxRetries = 3): Promis
 
 export async function POST(req: NextRequest) {
     try {
+        const token = await getToken({ req, secret });
+        
+        if (!token || !token.jwt) {
+            return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+        }
+
+        // Check if user has permission (Admin or Guru BK)
+        if (token.jabatan !== 'Admin' && token.jabatan !== 'Guru BK') {
+            return NextResponse.json({ message: 'Forbidden: Hanya Guru Bk dan Admin yang dapat ekspor pdf' }, { status: 403 });
+        }
         const body = await req.json();
-        const { data, month, className, waliKelas } = body;
+        const { data, month, className, waliKelas, pimpinan } = body;
 
         // Validasi parameter yang diperlukan
         if (!Array.isArray(data) || !month || !className || waliKelas === undefined) {
@@ -434,7 +447,7 @@ export async function POST(req: NextRequest) {
         console.log('Starting PDF generation for:', { month, className, dataLength: data.length });
 
         // Generate HTML content
-        const htmlContent = getHtml(data, month, className, waliKelas);
+        const htmlContent = getHtml(data, month, className, waliKelas, pimpinan, token.nama);
 
         // Generate PDF dengan retry mechanism
         const pdfBuffer = await generatePDFWithRetry(htmlContent);

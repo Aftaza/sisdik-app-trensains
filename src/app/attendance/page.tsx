@@ -27,7 +27,8 @@ import Link from 'next/link';
 import RootLayout from '../dashboard/layout';
 import useSWR from 'swr';
 import { fetcher } from '@/lib/fetcher';
-import { AttendanceMonthly, Classes } from '@/lib/data';
+import { AttendanceMonthly, Classes, Teacher } from '@/lib/data';
+import { useSession } from 'next-auth/react';
 
 const ROWS_PER_PAGE = 10;
 
@@ -53,12 +54,16 @@ export default function AttendanceClient() {
     const [selectedClass, setSelectedClass] = useState('Semua Kelas');
     const [isExporting, setIsExporting] = useState(false);
     const { toast } = useToast();
+    const { data: session } = useSession()
     
     const { data: classData, isLoading: classLoading } = useSWR<Classes[]>('/api/classes', fetcher);
+    const { data: teacherData, isLoading: teacherLoading } = useSWR<Teacher[]>('/api/teachers', fetcher);
     const { data: monthlyAttendanceData, isLoading: attendanceLoading, error: attendanceError } = useSWR<AttendanceMonthly[]>(
         selectedMonth ? `/api/attendances/get-month/${selectedMonth}` : null, 
         fetcher
     );
+
+    const hasPermission = session?.user?.jabatan === 'Admin' || session?.user?.jabatan === 'Guru BK';
 
     const classOptions = useMemo(() => {
         if (!classData) return ['Semua Kelas'];
@@ -88,10 +93,19 @@ export default function AttendanceClient() {
     };
 
     const handleExport = async () => {
+        if (!hasPermission) {
+            toast({
+                title: 'Akses Ditolak',
+                description: 'Anda tidak memiliki izin untuk melakukan aksi ini.',
+                variant: 'destructive',
+            });
+            return;
+        }
         setIsExporting(true);
         try {
             const monthLabel = monthOptions.find((opt) => opt.value === selectedMonth)?.label;
             const waliKelas = classData?.find((opt) => opt.nama_kelas === selectedClass)?.wali_kelas;
+            const pimpinan = teacherData?.find((opt) => opt.jabatan === 'Pimpinan Sekolah')?.nama;
             
             if (selectedClass === 'Semua Kelas') {
                 throw new Error('Gagal membuat PDF. Kelas Harus Dipilih.');
@@ -107,6 +121,7 @@ export default function AttendanceClient() {
                     month: monthLabel,
                     className: selectedClass,
                     waliKelas: waliKelas,
+                    pimpinan: pimpinan,
                 }),
             });
 
@@ -261,12 +276,12 @@ export default function AttendanceClient() {
                     <h1 className="text-3xl font-bold font-headline">Rekap Absensi Siswa</h1>
                     <div className="flex items-center gap-2">
                         <Button asChild variant="outline">
-                            <Link href="/attendance/import">
+                            <Link href="/attendance/import" className={hasPermission ? '' : 'hidden'}>
                                 <PlusCircle className="mr-2 h-4 w-4" />
                                 Tambah Absensi CSV
                             </Link>
                         </Button>
-                        <Button onClick={handleExport} disabled={isExporting || filteredAttendance.length === 0}>
+                        <Button onClick={handleExport} disabled={isExporting || filteredAttendance.length === 0 || !hasPermission}>
                             <Download className="mr-2 h-4 w-4" />
                             {isExporting ? 'Mengekspor...' : 'Ekspor PDF'}
                         </Button>
