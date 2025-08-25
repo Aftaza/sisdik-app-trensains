@@ -1,9 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
-import puppeteer from 'puppeteer';
 import type { AttendanceMonthly } from '@/lib/data';
 import { getToken } from 'next-auth/jwt';
 
 const secret = process.env.NEXTAUTH_SECRET;
+
+// Environment detection
+const isDevelopment = process.env.NODE_ENV === 'development';
+
+// Dynamic imports
+let puppeteer: any;
+let chromium: any;
+
+if (isDevelopment) {
+    // Development: gunakan puppeteer biasa
+    puppeteer = require('puppeteer');
+} else {
+    // Production: gunakan puppeteer-core dengan chromium
+    puppeteer = require('puppeteer-core');
+    chromium = require('@sparticuz/chromium');
+}
 
 function getHtml(data: AttendanceMonthly[], month: string, className: string, waliKelas: string, pimpinan: string, guruBk: string | undefined) {
     // Format bulan dan tahun dari parameter month (misal: "JULI 2025")
@@ -207,7 +222,8 @@ function getHtml(data: AttendanceMonthly[], month: string, className: string, wa
                         <div class="report-title">REKAP ABSENSI</div>
                         <div style="font-size: 12px; margin-bottom: 15px">
                             <div>BULAN : ${formattedMonth.toUpperCase()}</div>
-                            <div>TAHUN PELAJARAN : ${tahun}-${parseInt(tahun) + 1}
+                            <div>TAHUN PELAJARAN : ${tahun}-${parseInt(tahun) + 1}</div>
+                        </div>
                     </div>
 
                     <!-- Report Information -->
@@ -248,7 +264,6 @@ function getHtml(data: AttendanceMonthly[], month: string, className: string, wa
                                 </tr>
                             </thead>
                             <tbody id="studentData">
-                                <!-- Data siswa akan dimasukkan di sini -->
                                 ${tableRows}
                             </tbody>
                         </table>
@@ -276,11 +291,65 @@ function getHtml(data: AttendanceMonthly[], month: string, className: string, wa
                 </div>
             </body>
         </html>
-
     `;
 }
 
-async function generatePDFWithRetry(htmlContent: string, maxRetries = 3): Promise<Buffer> {
+async function getBrowserConfig() {
+    if (isDevelopment) {
+        // Development: gunakan puppeteer biasa jika tersedia, atau fallback ke puppeteer-core
+        try {
+            return {
+                args: [
+                    '--no-sandbox',
+                    '--disable-setuid-sandbox',
+                    '--disable-dev-shm-usage',
+                    '--disable-gpu',
+                ],
+                headless: true,
+            };
+        } catch {
+            // Fallback ke chromium jika puppeteer tidak tersedia
+            return {
+                args: [
+                    ...chromium.args,
+                    '--no-sandbox',
+                    '--disable-setuid-sandbox',
+                    '--disable-dev-shm-usage',
+                    '--disable-gpu',
+                    '--no-first-run',
+                    '--no-zygote',
+                    '--single-process',
+                ],
+                defaultViewport: { width: 1280, height: 720 },
+                executablePath: await chromium.executablePath(),
+                headless: true,
+                ignoreHTTPSErrors: true,
+            };
+        }
+    } else {
+        // Production: gunakan chromium
+        return {
+            args: [
+                ...chromium.args,
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-dev-shm-usage',
+                '--disable-gpu',
+                '--no-first-run',
+                '--no-zygote',
+                '--single-process', // Penting untuk serverless
+                '--disable-web-security',
+                '--disable-features=VizDisplayCompositor',
+            ],
+            defaultViewport: { width: 1280, height: 720 },
+            executablePath: await chromium.executablePath(),
+            headless: true,
+            ignoreHTTPSErrors: true,
+        };
+    }
+}
+
+async function generatePDFWithRetry(htmlContent: string, maxRetries = 2): Promise<Buffer> {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
         let browser = null;
         let page = null;
@@ -288,108 +357,75 @@ async function generatePDFWithRetry(htmlContent: string, maxRetries = 3): Promis
         try {
             console.log(`PDF Generation attempt ${attempt}/${maxRetries}`);
             
-            // Launch browser dengan konfigurasi minimal
+            // Get browser configuration
+            const browserConfig = await getBrowserConfig();
+            
+            // Launch browser
             browser = await puppeteer.launch({
-                headless: true,
-                args: [
-                    '--no-sandbox',
-                    '--disable-setuid-sandbox',
-                    '--disable-dev-shm-usage',
-                    '--disable-accelerated-2d-canvas',
-                    '--no-first-run',
-                    '--no-zygote',
-                    '--disable-gpu',
-                    '--disable-web-security',
-                    '--disable-features=VizDisplayCompositor',
-                    '--run-all-compositor-stages-before-draw',
-                    '--disable-backgrounding-occluded-windows',
-                    '--disable-renderer-backgrounding',
-                    '--disable-field-trial-config',
-                    '--disable-back-forward-cache',
-                    '--disable-hang-monitor',
-                    '--disable-ipc-flooding-protection',
-                    '--disable-background-timer-throttling',
-                    '--disable-backgrounding-occluded-windows',
-                    '--disable-renderer-backgrounding',
-                    '--disable-features=TranslateUI'
-                ],
-                timeout: 0, // No timeout for browser launch
-                protocolTimeout: 0, // No protocol timeout
+                ...browserConfig,
+                timeout: 30000, // 30 detik timeout untuk launch
             });
 
-            // Buat page dengan event listeners untuk debugging
+            // Create new page
             page = await browser.newPage();
             
-            // Event listeners untuk debugging
-            page.on('error', (err) => {
-                console.log('Page error:', err);
-            });
-            
-            page.on('pageerror', (err) => {
-                console.log('Page error:', err);
-            });
-
-            // Set viewport yang simple
+            // Set viewport
             await page.setViewport({
-                width: 800,
-                height: 600,
+                width: 1200,
+                height: 800,
                 deviceScaleFactor: 1
             });
             
-            // Set content secara langsung tanpa waitUntil
-            await page.setContent(htmlContent);
+            // Set content dengan timeout
+            await page.setContent(htmlContent, { 
+                waitUntil: 'networkidle0',
+                timeout: 30000 
+            });
             
-            // Pastikan DOM sudah ready
+            // Wait for images to load
             await page.evaluate(() => {
-                return new Promise<void>((resolve) => {
-                    if (document.readyState === 'loading') {
-                        document.addEventListener('DOMContentLoaded', () => resolve());
-                    } else {
-                        resolve();
-                    }
-                });
+                const images = Array.from(document.images);
+                return Promise.all(images.map(img => {
+                    if (img.complete) return Promise.resolve();
+                    return new Promise((resolve, reject) => {
+                        img.addEventListener('load', resolve);
+                        img.addEventListener('error', resolve); // Resolve even on error
+                        setTimeout(resolve, 5000); // Timeout after 5 seconds
+                    });
+                }));
             });
 
-            // Check if page is still connected before generating PDF
-            if (page.isClosed()) {
-                throw new Error('Page was closed before PDF generation');
-            }
-
-            // Generate PDF dengan timeout yang sangat tinggi
-            const pdfBuffer = await Promise.race([
-                page.pdf({
-                    format: 'A4',
-                    printBackground: true,
-                    margin: {
-                        top: '10mm',
-                        right: '10mm',
-                        bottom: '10mm',
-                        left: '10mm',
-                    },
-                    landscape: false,
-                    preferCSSPageSize: false,
-                    displayHeaderFooter: false,
-                }),
-                new Promise<never>((_, reject) => {
-                    setTimeout(() => reject(new Error('PDF generation timeout')), 60000);
-                })
-            ]);
+            // Generate PDF
+            const pdfBuffer = await page.pdf({
+                format: 'A4',
+                printBackground: true,
+                margin: {
+                    top: '10mm',
+                    right: '10mm',
+                    bottom: '10mm',
+                    left: '10mm',
+                },
+                landscape: false,
+                preferCSSPageSize: false,
+                displayHeaderFooter: false,
+                timeout: 30000, // 30 detik timeout untuk PDF generation
+            });
 
             console.log(`PDF generated successfully on attempt ${attempt}`);
             
-            // Clean up
-            if (page && !page.isClosed()) {
-                await page.close();
-            }
-            if (browser) {
-                await browser.close();
-            }
-
             return Buffer.from(pdfBuffer);
 
         } catch (error) {
             console.error(`Attempt ${attempt} failed:`, error);
             
+            // If this was the last attempt, throw the error
+            if (attempt === maxRetries) {
+                throw error;
+            }
+
+            // Wait before retry (exponential backoff)
+            await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+        } finally {
             // Clean up resources
             try {
                 if (page && !page.isClosed()) {
@@ -401,14 +437,6 @@ async function generatePDFWithRetry(htmlContent: string, maxRetries = 3): Promis
             } catch (cleanupError) {
                 console.error('Cleanup error:', cleanupError);
             }
-
-            // If this was the last attempt, throw the error
-            if (attempt === maxRetries) {
-                throw error;
-            }
-
-            // Wait before retry
-            await new Promise(resolve => setTimeout(resolve, 2000));
         }
     }
     
@@ -425,8 +453,11 @@ export async function POST(req: NextRequest) {
 
         // Check if user has permission (Admin or Guru BK)
         if (token.jabatan !== 'Admin' && token.jabatan !== 'Guru BK') {
-            return NextResponse.json({ message: 'Forbidden: Hanya Guru Bk dan Admin yang dapat ekspor pdf' }, { status: 403 });
+            return NextResponse.json({ 
+                message: 'Forbidden: Hanya Guru Bk dan Admin yang dapat ekspor pdf' 
+            }, { status: 403 });
         }
+        
         const body = await req.json();
         const { data, month, className, waliKelas, pimpinan } = body;
 
@@ -444,7 +475,12 @@ export async function POST(req: NextRequest) {
             }, { status: 400 });
         }
 
-        console.log('Starting PDF generation for:', { month, className, dataLength: data.length });
+        console.log('Starting PDF generation for:', { 
+            month, 
+            className, 
+            dataLength: data.length,
+            environment: isDevelopment ? 'development' : 'production'
+        });
 
         // Generate HTML content
         const htmlContent = getHtml(data, month, className, waliKelas, pimpinan, token.nama);
@@ -452,25 +488,42 @@ export async function POST(req: NextRequest) {
         // Generate PDF dengan retry mechanism
         const pdfBuffer = await generatePDFWithRetry(htmlContent);
         
-        // Return PDF response dengan headers yang lebih lengkap
+        // Create filename
+        const filename = `rekap-absensi-${month.toLowerCase().replace(' ', '-')}-${className.toLowerCase().replace(/\s+/g, '-')}.pdf`;
+        
+        // Return PDF response
         return new NextResponse(Buffer.from(pdfBuffer), {
             status: 200,
             headers: {
                 'Content-Type': 'application/pdf',
-                'Content-Disposition': `attachment; filename="rekap-absensi-${month.toLowerCase().replace(' ', '-')}-${className.toLowerCase().replace(/\s+/g, '-')}.pdf"`,
+                'Content-Disposition': `attachment; filename="${filename}"`,
                 'Content-Length': pdfBuffer.length.toString(),
                 'Cache-Control': 'no-cache, no-store, must-revalidate',
                 'Pragma': 'no-cache',
                 'Expires': '0',
-                'Access-Control-Expose-Headers': 'Content-Disposition',
             },
         });
 
     } catch (error) {
         console.error('Error in PDF generation endpoint:', error);
 
+        // Enhanced error handling
+        let errorMessage = 'Gagal membuat PDF. Silakan coba lagi dalam beberapa saat.';
+        let statusCode = 500;
+
+        if (error instanceof Error) {
+            if (error.message.includes('Could not find Chrome')) {
+                errorMessage = 'Chrome browser tidak tersedia di server. Hubungi administrator.';
+            } else if (error.message.includes('timeout')) {
+                errorMessage = 'Timeout saat membuat PDF. Coba kurangi jumlah data atau coba lagi nanti.';
+            } else if (error.message.includes('Navigation failed')) {
+                errorMessage = 'Gagal memuat konten HTML. Periksa koneksi internet.';
+            }
+        }
+
         return NextResponse.json({ 
-            error: 'Gagal membuat PDF. Silakan coba lagi dalam beberapa saat.' 
-        }, { status: 500 });
+            error: errorMessage,
+            details: isDevelopment ? errorMessage : undefined
+        }, { status: statusCode });
     }
 }
