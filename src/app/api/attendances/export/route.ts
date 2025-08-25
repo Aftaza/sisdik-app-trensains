@@ -438,9 +438,7 @@ export async function POST(req: NextRequest) {
 
         // Generate PDF dengan retry mechanism
         const pdfBuffer = await generatePDFWithRetry(htmlContent);
-
-        console.log('PDF generation completed successfully');
-
+        
         // Return PDF response dengan headers yang lebih lengkap
         return new NextResponse(Buffer.from(pdfBuffer), {
             status: 200,

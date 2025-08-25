@@ -111,36 +111,31 @@ export default function AttendanceClient() {
             });
 
             if (!response.ok) {
-                const errorText = await response.text();
-                console.error('Server error:', errorText);
                 throw new Error('Gagal membuat PDF. Silakan coba lagi.');
             }
 
-            // Gunakan response.blob() langsung
-            const blob = await response.blob();
+            const arrayBuffer = await response.arrayBuffer();
+            console.log('PDF buffer size:', arrayBuffer.byteLength);
+            const blob = new Blob([arrayBuffer], { type: 'application/pdf' });
+            console.log('Blob size:', blob.size);
+            const fileName = `rekap-absensi-${selectedClass.replace(/[^a-zA-Z0-9]/g, '-')}-${selectedMonth}.pdf`;
             
-            // Buat URL dan download menggunakan window.open
-            const url = URL.createObjectURL(blob);
-            
-            // Method 1: Gunakan window.open untuk download
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = `rekap-absensi-${selectedClass.replace(/[^a-zA-Z0-9]/g, '-')}-${selectedMonth}.pdf`;
-            
-            // Untuk Safari compatibility
-            link.target = '_blank';
-            link.rel = 'noopener noreferrer';
-            
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            
-            // Cleanup
-            setTimeout(() => URL.revokeObjectURL(url), 1000);
+            // manual download
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(() => {
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+            }, 500);
 
             toast({
                 title: 'Ekspor Berhasil',
-                description: 'Data absensi telah berhasil diekspor',
+                description: `Data absensi telah berhasil diekspor sebagai ${fileName}`,
             });
 
         } catch (error) {
