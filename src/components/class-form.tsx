@@ -82,7 +82,7 @@ export function ClassForm({ children, classData, mutate }: ClassFormProps) {
         }
         setIsSubmitting(true);
         try {
-            const url = isEditMode ? `/api/C/${classData?.id}` : '/api/C';
+            const url = isEditMode ? `/api/classes/${classData?.id}` : '/api/classes';
             const method = isEditMode ? 'PUT' : 'POST';
             
             const body = {
