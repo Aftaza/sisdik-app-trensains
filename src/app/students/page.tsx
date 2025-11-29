@@ -20,10 +20,11 @@ import {
     ArrowUp,
     ArrowDown,
     Loader2,
+    Upload,
 } from 'lucide-react';
 import RootLayout from '../dashboard/layout';
 import { useRouter } from 'next/navigation';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { StudentForm } from '@/components/student-form';
 import {
     DropdownMenu,
@@ -46,6 +47,7 @@ import { fetcher } from '@/lib/fetcher';
 import { cn } from '@/lib/utils';
 import type { Student } from '@/lib/data';
 import { useSession } from 'next-auth/react';
+import { ImportStudentsCsv } from '@/components/import-students-csv';
 
 const ROWS_PER_PAGE = 10;
 
@@ -63,7 +65,7 @@ export default function StudentsPage() {
     const { toast } = useToast();
     const { data: session } = useSession();
 
-    const hasPermission = session?.user?.jabatan === 'Admin' || session?.user?.jabatan === 'Guru BK';
+    const hasPermission = session?.user?.role === 'Admin' || session?.user?.role === 'Guru BK';
 
     const classOptions = useMemo(() => {
         if (!students) {
@@ -71,7 +73,11 @@ export default function StudentsPage() {
         }
 
         // Menggunakan Set untuk mendapatkan nilai kelas yang unik
-        const uniqueClasses = new Set(students.map((student) => student.kelas));
+        const uniqueClasses = new Set(
+            students
+                .map((student) => student.classes?.name)
+                .filter((className): className is string => !!className)
+        );
 
         // Mengubah Set menjadi array dan menambahkan 'Semua' di awal
         return ['Semua', ...Array.from(uniqueClasses).sort()];
@@ -82,7 +88,7 @@ export default function StudentsPage() {
         let filtered = students;
 
         if (classFilter !== 'Semua') {
-            filtered = filtered.filter((student) => student.kelas === classFilter);
+            filtered = filtered.filter((student) => student.classes?.name === classFilter);
         }
 
         if (sortOrder !== 'none') {
@@ -97,6 +103,11 @@ export default function StudentsPage() {
 
         return filtered;
     }, [students, classFilter, sortOrder]);
+
+    // Reset to page 1 when filter changes
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [classFilter, sortOrder]);
 
     if (error) {
         return (
@@ -143,7 +154,7 @@ export default function StudentsPage() {
         setCurrentPage((prev) => Math.min(prev + 1, totalPages));
     };
 
-    const handleDelete = async (studentId: number) => {
+    const handleDelete = async (studentId: string) => {
         if (!hasPermission) {
             toast({
                 title: "Akses Ditolak",
@@ -208,12 +219,20 @@ export default function StudentsPage() {
                 <div className="flex items-center justify-between">
                     <h1 className="text-3xl font-bold font-headline">Daftar Siswa</h1>
                     { hasPermission && (
-                        <StudentForm classOpt={classOptions.filter((opt) => opt !== 'Semua')}>
-                            <Button disabled={isLoading || !classOptions || classOptions.length <= 1}>
-                                <PlusCircle />
-                                Tambah Siswa
-                            </Button>
-                        </StudentForm>
+                        <div className="flex gap-2">
+                            <ImportStudentsCsv onSuccess={() => mutate()}>
+                                <Button variant="outline" disabled={isLoading}>
+                                    <Upload className="mr-2 h-4 w-4" />
+                                    Import CSV
+                                </Button>
+                            </ImportStudentsCsv>
+                            <StudentForm>
+                                <Button disabled={isLoading}>
+                                    <PlusCircle />
+                                    Tambah Siswa
+                                </Button>
+                            </StudentForm>
+                        </div>
                     )}
                 </div>
 
@@ -284,7 +303,7 @@ export default function StudentsPage() {
                                                 }
                                                 className="font-medium cursor-pointer"
                                             >
-                                                {student.nama_lengkap}
+                                                {student.name}
                                             </TableCell>
                                             <TableCell
                                                 onClick={() =>
@@ -300,7 +319,7 @@ export default function StudentsPage() {
                                                 }
                                                 className="cursor-pointer"
                                             >
-                                                {student.kelas}
+                                                {student.classes?.name || '-'}
                                             </TableCell>
                                             <TableCell
                                                 onClick={() =>
@@ -338,9 +357,6 @@ export default function StudentsPage() {
                                                         <DropdownMenuContent align="end">
                                                             <StudentForm
                                                                 student={student}
-                                                                classOpt={classOptions.filter(
-                                                                    (opt) => opt !== 'Semua'
-                                                                )}
                                                             >
                                                                 <DropdownMenuItem
                                                                     onSelect={(e) => e.preventDefault()}
@@ -350,7 +366,7 @@ export default function StudentsPage() {
                                                             </StudentForm>
                                                             <DeleteConfirmationDialog
                                                                 onConfirm={() =>
-                                                                    handleDelete(student.nis)
+                                                                    handleDelete(student.id)
                                                                 }
                                                             >
                                                                 <DropdownMenuItem

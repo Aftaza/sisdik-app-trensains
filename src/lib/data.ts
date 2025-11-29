@@ -1,63 +1,114 @@
+// Base types from new API
 export type Student = {
-    nis: number;
-    nama_lengkap: string;
-    kelas: string;
-    total_poin: number;
+    id: string;
+    name: string;
+    nis: string;
+    class_id: string;
+    phone?: string;
+    address?: string;
+    total_poin: number;  // Changed from total_poin
+    created_at: string;
+    updated_at: string;
+    classes?: {  // Changed from classes
+        id: string;
+        name: string;
+        description?: string;
+        total_siswa?: number;
+    };
 };
 
 export type Violation = {
-    id: number;
-    nis_siswa: string;
-    nama_siswa: string;
-    jenis_pelanggaran: string;
-    catatan: string;
-    tanggal_terjadi: string;
-    tanggal_dicatat: string;
-    pelapor: string;
-    guru_bk: string;
-    poin?: number;
+    id: string;
+    student_id: string;
+    violation_type_id: string;
+    reporting_teacher_id: string;
+    notes?: string;
+    created_at: string;
+    updated_at: string;
+    student?: {
+        id: string;
+        name: string;
+        nis: string;
+        class?: {
+            name: string;
+        };
+    };
+    violation_type?: {
+        id: string;
+        name: string;
+        description?: string;
+        poin: number;
+    };
+    reporting_teacher?: {
+        id: string;
+        name: string;
+        nip: string;
+    };
 };
 
 export type Teacher = {
-    id: number;
-    nama: string;
+    id: string;
+    name: string;
+    nip: string;
     email: string;
-    jabatan: string;
+    phone?: string;
+    role?: string;
+    created_at: string;
+    updated_at: string;
 };
 
 export type ViolationType = {
-    id: number;
-    nama_pelanggaran: string;
+    id: string;
+    name: string;
     kategori: string;
-    pembuat: string;
     poin: number;
+    teachers?: {
+        email: string;
+        name: string;
+    };
+    created_at: string;
+    updated_at: string;
 };
 
 export type Sanction = {
-    id: number;
-    pembinaan: string;
+    id: string;
+    name: string[];  // Array of pembinaan names
     start_poin: number;
     end_poin: number;
+    created_at: string;
+    updated_at: string;
 };
 
 export type Classes = {
-    id: number;
-    nama_kelas: string;
-    wali_kelas: string;
+    id: string;
+    name: string;
+    description?: string;
     total_siswa: number;
-}
+    created_at: string;
+    updated_at: string;
+};
 
 export type AttendanceDaily = {
-    id: number;
-    tanggal: string;
-    nama_siswa: string;
-    nis_siswa: number;
-    kelas: string;
-    status_absensi: string;
-}
+    id: string;
+    student_id: string;
+    date: string;
+    status: 'hadir' | 'sakit' | 'izin' | 'alpha';
+    notes?: string;
+    created_at: string;
+    updated_at: string;
+    student?: {
+        id: string;
+        name: string;
+        nis: string;
+        class?: {
+            id: string;
+            name: string;
+        };
+    };
+};
 
 export type AttendanceMonthly = {
-    nis_siswa: number;
+    nis_siswa: string;
     nama_siswa: string;
     kelas: string;
     tanggal: string;
@@ -66,11 +117,11 @@ export type AttendanceMonthly = {
     sakit: number;
     izin: number;
     alpha: number;
-}
+};
 
 export type GroupedAttendance = {
-    id: number;
-    nis_siswa: number;
+    id: string;
+    nis_siswa: string;
     nama_siswa: string;
     kelas: string;
     bulanTahun: string;

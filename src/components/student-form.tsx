@@ -18,53 +18,65 @@ import { Input } from './ui/input';
 import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import type { Student } from '@/lib/data';
+import type { Student, Classes } from '@/lib/data';
 import { useSWRConfig } from 'swr';
+import useSWR from 'swr';
+import { fetcher } from '@/lib/fetcher';
 import { Loader2 } from 'lucide-react';
 
 const formSchema = z.object({
-    nama: z.string().min(3, 'Nama harus diisi minimal 3 karakter.'),
+    name: z.string().min(3, 'Nama harus diisi minimal 3 karakter.'),
     nis: z
         .string()
         .min(4, 'NIS harus diisi minimal 4 digit.')
         .regex(/^\d+$/, 'NIS hanya boleh berisi angka.'),
-    kelas: z.string().min(1, 'Kelas harus dipilih.'),
+    class_id: z.string().min(1, 'Kelas harus dipilih.'),
+    phone: z.string().optional(),
+    address: z.string().optional(),
 });
 
 type StudentFormProps = {
     children: React.ReactNode;
     student?: Student;
-    classOpt?: string[];
 };
 
-export function StudentForm({ children, student, classOpt }: StudentFormProps) {
+export function StudentForm({ children, student }: StudentFormProps) {
     const [open, setOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const { toast } = useToast();
     const { mutate } = useSWRConfig();
     const isEditMode = !!student;
 
+    // Fetch classes from API
+    const { data: classes } = useSWR<Classes[]>('/api/classes', fetcher);
+
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
         defaultValues: {
-            nama: '',
+            name: '',
             nis: '',
-            kelas: '',
+            class_id: '',
+            phone: '',
+            address: '',
         },
     });
 
     useEffect(() => {
         if (isEditMode && student) {
             form.reset({
-                nama: student.nama_lengkap,
+                name: student.name,
                 nis: String(student.nis),
-                kelas: student.kelas,
+                class_id: student.class_id || '',
+                phone: student.phone || '',
+                address: student.address || '',
             });
         } else {
             form.reset({
-                nama: '',
+                name: '',
                 nis: '',
-                kelas: '',
+                class_id: '',
+                phone: '',
+                address: '',
             });
         }
     }, [isEditMode, student, form, open]);
@@ -73,7 +85,7 @@ export function StudentForm({ children, student, classOpt }: StudentFormProps) {
         setIsLoading(true);
         try {
             const response = await fetch(
-                isEditMode ? `/api/students/${student?.nis}` : '/api/students',
+                isEditMode ? `/api/students/${student?.id}` : '/api/students',
                 {
                     method: isEditMode ? 'PUT' : 'POST',
                     headers: {
@@ -91,8 +103,8 @@ export function StudentForm({ children, student, classOpt }: StudentFormProps) {
             toast({
                 title: 'Sukses',
                 description: isEditMode
-                    ? `Data siswa "${values.nama}" berhasil diperbarui.`
-                    : `Siswa baru "${values.nama}" berhasil ditambahkan.`,
+                    ? `Data siswa "${values.name}" berhasil diperbarui.`
+                    : `Siswa baru "${values.name}" berhasil ditambahkan.`,
             });
             mutate('/api/students');
             setOpen(false);
@@ -134,7 +146,7 @@ export function StudentForm({ children, student, classOpt }: StudentFormProps) {
                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                         <FormField
                             control={form.control}
-                            name="nama"
+                            name="name"
                             render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>Nama Lengkap</FormLabel>
@@ -164,7 +176,7 @@ export function StudentForm({ children, student, classOpt }: StudentFormProps) {
                         />
                         <FormField
                             control={form.control}
-                            name="kelas"
+                            name="class_id"
                             render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>Kelas</FormLabel>
@@ -175,9 +187,9 @@ export function StudentForm({ children, student, classOpt }: StudentFormProps) {
                                             </SelectTrigger>
                                         </FormControl>
                                         <SelectContent>
-                                            {classOpt?.map((opt) => (
-                                                <SelectItem key={opt} value={opt}>
-                                                    {opt}
+                                            {classes?.map((classItem) => (
+                                                <SelectItem key={classItem.id} value={classItem.id}>
+                                                    {classItem.name}
                                                 </SelectItem>
                                             ))}
                                         </SelectContent>
@@ -186,14 +198,40 @@ export function StudentForm({ children, student, classOpt }: StudentFormProps) {
                                 </FormItem>
                             )}
                         />
+                        <FormField
+                            control={form.control}
+                            name="phone"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>No. Telepon (Opsional)</FormLabel>
+                                    <FormControl>
+                                        <Input placeholder="Contoh: 081234567890" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        <FormField
+                            control={form.control}
+                            name="address"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Alamat (Opsional)</FormLabel>
+                                    <FormControl>
+                                        <Input placeholder="Contoh: Jl. Merdeka No. 123" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
                         <DialogFooter>
                             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
                                 Batal
                             </Button>
-                            <Button type="submit" disabled={isLoading}>
+                            <Button type="submit" disabled={isLoading || !classes || classes.length === 0}>
                                 {isLoading ? (
                                     <>
-                                        <Loader2 className="h-6 w-6 animate-spin text-white mx-auto" />
+                                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
                                         Menyimpan...
                                     </>
                                 ) : (

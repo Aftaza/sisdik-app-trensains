@@ -23,6 +23,7 @@ import { useState } from 'react';
 import useSWR from 'swr';
 import { useSession } from 'next-auth/react';
 import { useToast } from '@/hooks/use-toast';
+import { useRole } from '@/hooks/use-role';
 import { fetcher } from '@/lib/fetcher';
 import { Classes } from '@/lib/data';
 import RootLayout from '../dashboard/layout';
@@ -32,12 +33,12 @@ const ROWS_PER_PAGE = 5;
 export default function ClassesClient() {
     const [currentPage, setCurrentPage] = useState(1);
     const { data, error, isLoading, mutate } = useSWR('/api/classes', fetcher);
-    const { data: session } = useSession();
+    const { data: session, status } = useSession();
     const { toast } = useToast();
+    const { canManageStudents } = useRole();
 
     // Check if user has admin or BK teacher role
-    const userRole = session?.user?.jabatan;
-    const canPerformActions = userRole === 'Admin' || userRole === 'Guru BK';
+    const canPerformActions = canManageStudents;
 
     // Error state
         if (error) {
@@ -50,7 +51,7 @@ export default function ClassesClient() {
                                 <ClassForm mutate={mutate}>
                                     <Button>
                                         <PlusCircle className="mr-2 h-4 w-4" />
-                                        Tambah Tipe
+                                        Tambah Kelas
                                     </Button>
                                 </ClassForm>
                             )}
@@ -140,7 +141,6 @@ export default function ClassesClient() {
                             <TableHeader>
                                 <TableRow>
                                     <TableHead>Nama Kelas</TableHead>
-                                    <TableHead>Wali Kelas</TableHead>
                                     <TableHead>Jumlah Siswa</TableHead>
                                     {canPerformActions && <TableHead className="text-center">Aksi</TableHead>}
                                 </TableRow>
@@ -148,7 +148,7 @@ export default function ClassesClient() {
                             <TableBody>
                                 {isLoading ? (
                                     <TableRow>
-                                        <TableCell colSpan={canPerformActions ? 4 : 3} className="text-center py-10">
+                                        <TableCell colSpan={canPerformActions ? 3 : 2} className="text-center py-10">
                                             <div className="flex flex-col items-center justify-center">
                                                 <Loader2 className="h-6 w-6 animate-spin text-primary" />
                                                 <p className="mt-2">Memuat data kelas...</p>
@@ -157,7 +157,7 @@ export default function ClassesClient() {
                                     </TableRow>
                                 ) : currentClasses.length === 0 ? (
                                     <TableRow>
-                                        <TableCell colSpan={canPerformActions ? 4 : 3} className="text-center py-10">
+                                        <TableCell colSpan={canPerformActions ? 3 : 2} className="text-center py-10">
                                             <div className="flex flex-col items-center justify-center">
                                                 <p>Tidak ada data Kelas.</p>
                                                 {canPerformActions && (
@@ -174,9 +174,8 @@ export default function ClassesClient() {
                                 ) : (
                                     currentClasses.map((classItem: Classes) => (
                                         <TableRow key={classItem.id}>
-                                            <TableCell className="font-medium">{classItem?.nama_kelas}</TableCell>
-                                            <TableCell>{classItem?.wali_kelas}</TableCell>
-                                            <TableCell>{classItem?.total_siswa}</TableCell>
+                                            <TableCell className="font-medium">{classItem?.name || '-'}</TableCell>
+                                            <TableCell>{classItem?.total_siswa || 0}</TableCell>
                                             {canPerformActions && (
                                                 <TableCell className="text-center">
                                                     <DropdownMenu>
@@ -199,7 +198,7 @@ export default function ClassesClient() {
                                                                 </DropdownMenuItem>
                                                             </ClassForm>
                                                             <DeleteConfirmationDialog
-                                                                onConfirm={() => handleDelete(classItem.id.toString())}
+                                                                onConfirm={() => handleDelete(classItem.id)}
                                                             >
                                                                 <DropdownMenuItem
                                                                     onSelect={(e) => e.preventDefault()}

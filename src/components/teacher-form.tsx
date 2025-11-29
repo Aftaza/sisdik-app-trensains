@@ -26,9 +26,11 @@ import { Checkbox } from '@/components/ui/checkbox'; // ✅ Import Checkbox comp
 
 // ✅ PERBAIKAN: Password sekarang opsional di skema utama
 const formSchema = z.object({
-    nama: z.string().min(3, 'Nama harus diisi minimal 3 karakter.'),
+    name: z.string().min(3, 'Nama harus diisi minimal 3 karakter.'),
     email: z.string().email('Format email tidak valid.'),
-    jabatan: z.string().min(1, 'Jabatan harus dipilih.'),
+    nip: z.string().optional(), // NIP opsional
+    phone: z.string().optional(), // Phone opsional
+    role: z.string().min(1, 'Role harus dipilih.'),
     password: z.string().optional(), // Default: password opsional
 });
 
@@ -37,7 +39,8 @@ type TeacherFormProps = {
     teacher?: Teacher;
 };
 
-const roleOptions = ['Guru BK', 'Wali Kelas', 'Pimpinan Sekolah'];
+// Updated role options to match new API
+const roleOptions = ['Wali Kelas', 'Guru BK', 'Pimpinan Sekolah'];
 
 export function TeacherForm({ children, teacher }: TeacherFormProps) {
     const [open, setOpen] = useState(false);
@@ -52,14 +55,16 @@ export function TeacherForm({ children, teacher }: TeacherFormProps) {
     const [showPassword, setShowPassword] = useState(false);
 
     const hasPermission =
-        session?.user?.jabatan === 'Admin' || session?.user?.jabatan === 'Guru BK';
+        session?.user?.role === 'Admin' || session?.user?.role === 'Guru BK';
 
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
         defaultValues: {
-            nama: '',
+            name: '',
             email: '',
-            jabatan: '',
+            nip: '',
+            phone: '',
+            role: '',
             password: '',
         },
     });
@@ -67,17 +72,21 @@ export function TeacherForm({ children, teacher }: TeacherFormProps) {
     useEffect(() => {
         if (isEditMode && teacher) {
             form.reset({
-                nama: teacher.nama,
+                name: teacher.name,
                 email: teacher.email,
-                jabatan: teacher.jabatan,
+                nip: teacher.nip || '',
+                phone: teacher.phone || '',
+                role: teacher.role,
                 password: '', // Selalu kosongkan password saat membuka form edit
             });
             setChangePassword(false); // Default: tidak mengubah password di mode edit
         } else {
             form.reset({
-                nama: '',
+                name: '',
                 email: '',
-                jabatan: '',
+                nip: '',
+                phone: '',
+                role: '',
                 password: '',
             });
             setChangePassword(true); // Default: password wajib di mode tambah
@@ -147,8 +156,8 @@ export function TeacherForm({ children, teacher }: TeacherFormProps) {
             toast({
                 title: 'Sukses',
                 description: isEditMode
-                    ? `Data guru "${values.nama}" berhasil diperbarui.`
-                    : `Guru baru "${values.nama}" berhasil ditambahkan.`,
+                    ? `Data guru "${values.name}" berhasil diperbarui.`
+                    : `Guru baru "${values.name}" berhasil ditambahkan.`,
             });
 
             mutate('/api/teachers');
@@ -192,7 +201,7 @@ export function TeacherForm({ children, teacher }: TeacherFormProps) {
                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                         <FormField
                             control={form.control}
-                            name="nama"
+                            name="name"
                             render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>Nama Lengkap</FormLabel>
@@ -218,14 +227,40 @@ export function TeacherForm({ children, teacher }: TeacherFormProps) {
                         />
                         <FormField
                             control={form.control}
-                            name="jabatan"
+                            name="nip"
                             render={({ field }) => (
                                 <FormItem>
-                                    <FormLabel>Jabatan</FormLabel>
+                                    <FormLabel>NIP (Opsional)</FormLabel>
+                                    <FormControl>
+                                        <Input placeholder="Contoh: 198001012005011001" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        <FormField
+                            control={form.control}
+                            name="phone"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>No. Telepon (Opsional)</FormLabel>
+                                    <FormControl>
+                                        <Input placeholder="Contoh: 081234567890" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        <FormField
+                            control={form.control}
+                            name="role"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Role</FormLabel>
                                     <Select onValueChange={field.onChange} value={field.value}>
                                         <FormControl>
                                             <SelectTrigger>
-                                                <SelectValue placeholder="Pilih jabatan" />
+                                                <SelectValue placeholder="Pilih role" />
                                             </SelectTrigger>
                                         </FormControl>
                                         <SelectContent>

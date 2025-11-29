@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/table';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, ChevronRight, Download, PlusCircle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Download, PlusCircle, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState, useMemo } from 'react';
 import { Progress } from '@/components/ui/progress';
@@ -27,19 +27,48 @@ import Link from 'next/link';
 import RootLayout from '../dashboard/layout';
 import useSWR from 'swr';
 import { fetcher } from '@/lib/fetcher';
-import { AttendanceMonthly, Classes, Teacher } from '@/lib/data';
+import { Classes } from '@/lib/data';
 import { useSession } from 'next-auth/react';
+
+// Updated interface to match new API structure
+interface AttendanceDaily {
+    id: string;
+    student_id: string;
+    date: string;
+    status: 'hadir' | 'sakit' | 'izin' | 'alpha';
+    notes: string;
+    students: {
+        nis: string;
+        name: string;
+        classes: {
+            name: string;
+        };
+    };
+}
+
+// Grouped attendance by student
+interface StudentAttendanceSummary {
+    nis: string;
+    name: string;
+    class: string;
+    hadir: number;
+    sakit: number;
+    izin: number;
+    alpha: number;
+    total: number;
+}
 
 const ROWS_PER_PAGE = 10;
 
+// Generate month options for last 6 months (1 semester)
 const getMonthOptions = () => {
     const options = [];
     const now = new Date();
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < 6; i++) {
         const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
         const year = d.getFullYear();
         const month = d.getMonth() + 1;
-        const value = `${year}-${month}`; // "YYYY-MM"
+        const value = `${year}-${month}`; // "YYYY-M"
         const label = d.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
         options.push({ value, label });
     }
@@ -52,32 +81,80 @@ export default function AttendanceClient() {
     const monthOptions = useMemo(() => getMonthOptions(), []);
     const [selectedMonth, setSelectedMonth] = useState(monthOptions[0].value);
     const [selectedClass, setSelectedClass] = useState('Semua Kelas');
-    const [isExporting, setIsExporting] = useState(false);
     const { toast } = useToast();
-    const { data: session } = useSession()
-    
+    const { data: session } = useSession();
+
     const { data: classData, isLoading: classLoading } = useSWR<Classes[]>('/api/classes', fetcher);
-    const { data: teacherData, isLoading: teacherLoading } = useSWR<Teacher[]>('/api/teachers', fetcher);
-    const { data: monthlyAttendanceData, isLoading: attendanceLoading, error: attendanceError } = useSWR<AttendanceMonthly[]>(
-        selectedMonth ? `/api/attendances/get-month/${selectedMonth}` : null, 
+    
+    const {
+        data: attendanceData,
+        isLoading: attendanceLoading,
+        error: attendanceError,
+    } = useSWR<AttendanceDaily[]>(
+        selectedMonth ? `/api/attendances/get-month/${selectedMonth}` : null,
         fetcher
     );
 
-    const hasPermission = session?.user?.jabatan === 'Admin' || session?.user?.jabatan === 'Guru BK';
+    const hasPermission = session?.user?.role === 'Admin' || session?.user?.role === 'Guru BK';
 
     const classOptions = useMemo(() => {
         if (!classData) return ['Semua Kelas'];
-        return ['Semua Kelas', ...classData.map((cls) => cls.nama_kelas)];
+        return ['Semua Kelas', ...classData.map((cls) => cls.name)];
     }, [classData]);
 
+    // Group attendance by student
+    const groupedAttendance = useMemo(() => {
+        if (!attendanceData || !Array.isArray(attendanceData)) return [];
+
+        const grouped: { [key: string]: StudentAttendanceSummary } = {};
+
+        attendanceData.forEach((att) => {
+            const nis = att.students?.nis || '';
+            const name = att.students?.name || '';
+
+            if (!nis) return; // Skip if no NIS
+
+            if (!grouped[nis]) {
+                grouped[nis] = {
+                    nis,
+                    name,
+                    class: att.students?.classes?.name || '', // Will be filled from class data
+                    hadir: 0,
+                    sakit: 0,
+                    izin: 0,
+                    alpha: 0,
+                    total: 0,
+                };
+            }
+
+            const statusLower = att.status.toLowerCase();
+            switch (statusLower) {
+                case 'hadir':
+                    grouped[nis].hadir += 1;
+                    break;
+                case 'sakit':
+                    grouped[nis].sakit += 1;
+                    break;
+                case 'izin':
+                    grouped[nis].izin += 1;
+                    break;
+                case 'alpha':
+                    grouped[nis].alpha += 1;
+                    break;
+            }
+            grouped[nis].total += 1;
+        });
+
+        return Object.values(grouped);
+    }, [attendanceData]);
+
+    // Filter by class
     const filteredAttendance = useMemo(() => {
-        if (!monthlyAttendanceData) return [];
-        let filtered = [...monthlyAttendanceData];
-        if (selectedClass !== 'Semua Kelas') {
-            filtered = filtered.filter((att) => att.kelas === selectedClass);
+        if (selectedClass === 'Semua Kelas') {
+            return groupedAttendance;
         }
-        return filtered;
-    }, [monthlyAttendanceData, selectedClass]);
+        return groupedAttendance.filter((att) => att.class === selectedClass);
+    }, [groupedAttendance, selectedClass]);
 
     const totalPages = Math.ceil(filteredAttendance.length / ROWS_PER_PAGE);
     const startIndex = (currentPage - 1) * ROWS_PER_PAGE;
@@ -92,79 +169,6 @@ export default function AttendanceClient() {
         setCurrentPage((prev) => Math.min(prev + 1, totalPages));
     };
 
-    const handleExport = async () => {
-        if (!hasPermission) {
-            toast({
-                title: 'Akses Ditolak',
-                description: 'Anda tidak memiliki izin untuk melakukan aksi ini.',
-                variant: 'destructive',
-            });
-            return;
-        }
-        setIsExporting(true);
-        try {
-            const monthLabel = monthOptions.find((opt) => opt.value === selectedMonth)?.label;
-            const waliKelas = classData?.find((opt) => opt.nama_kelas === selectedClass)?.wali_kelas;
-            const pimpinan = teacherData?.find((opt) => opt.jabatan === 'Pimpinan Sekolah')?.nama;
-            
-            if (selectedClass === 'Semua Kelas') {
-                throw new Error('Gagal membuat PDF. Kelas Harus Dipilih.');
-            }
-
-            const response = await fetch('/api/attendances/export', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    data: filteredAttendance,
-                    month: monthLabel,
-                    className: selectedClass,
-                    waliKelas: waliKelas,
-                    pimpinan: pimpinan,
-                }),
-            });
-
-            if (!response.ok) {
-                throw new Error('Gagal membuat PDF. Silakan coba lagi.');
-            }
-
-            const arrayBuffer = await response.arrayBuffer();
-            console.log('PDF buffer size:', arrayBuffer.byteLength);
-            const blob = new Blob([arrayBuffer], { type: 'application/pdf' });
-            console.log('Blob size:', blob.size);
-            const fileName = `rekap-absensi-${selectedClass.replace(/[^a-zA-Z0-9]/g, '-')}-${selectedMonth}.pdf`;
-            
-            // manual download
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.style.display = 'none';
-            a.href = url;
-            a.download = fileName;
-            document.body.appendChild(a);
-            a.click();
-            setTimeout(() => {
-                window.URL.revokeObjectURL(url);
-                document.body.removeChild(a);
-            }, 500);
-
-            toast({
-                title: 'Ekspor Berhasil',
-                description: `Data absensi telah berhasil diekspor sebagai ${fileName}`,
-            });
-
-        } catch (error) {
-            console.error('Export error:', error);
-            toast({
-                variant: 'destructive',
-                title: 'Ekspor Gagal',
-                description: error instanceof Error ? error.message : 'Terjadi kesalahan saat mengekspor data.',
-            });
-        } finally {
-            setIsExporting(false);
-        }
-    };
-
     const calculatePercentage = (present: number, total: number) => {
         if (total === 0) return 0;
         return (present / total) * 100;
@@ -172,12 +176,16 @@ export default function AttendanceClient() {
 
     const handleMonthChange = (value: string) => {
         setSelectedMonth(value);
-        setCurrentPage(1); // Reset to first page when month changes
+        setCurrentPage(1);
     };
 
     const handleClassChange = (value: string) => {
         setSelectedClass(value);
-        setCurrentPage(1); // Reset to first page when class changes
+        setCurrentPage(1);
+    };
+
+    const getMonthLabel = () => {
+        return monthOptions.find((opt) => opt.value === selectedMonth)?.label || '';
     };
 
     if (classLoading || attendanceLoading) {
@@ -187,8 +195,8 @@ export default function AttendanceClient() {
                     <div className="flex items-center justify-between">
                         <h1 className="text-3xl font-bold font-headline">Rekap Absensi Siswa</h1>
                         <div className="flex items-center gap-2">
-                            <Button asChild variant="outline">
-                                <Link href="/attendance/import" className={hasPermission ? '' : 'hidden'}>
+                            <Button asChild variant="outline" className="hidden">
+                                <Link href="/attendance/import">
                                     <PlusCircle className="mr-2 h-4 w-4" />
                                     Tambah Absensi CSV
                                 </Link>
@@ -201,22 +209,8 @@ export default function AttendanceClient() {
                     </div>
                     <Card>
                         <CardContent className="flex flex-col gap-5 items-center justify-center h-64">
-                            <Select value={selectedMonth} onValueChange={handleMonthChange}>
-                                <SelectTrigger className="w-[200px]">
-                                    <SelectValue placeholder="Pilih bulan" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {monthOptions.map((opt) => (
-                                        <SelectItem key={opt.value} value={opt.value}>
-                                            {opt.label}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                            <div className="text-center">
-                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto"></div>
-                                <p className="mt-2 text-muted-foreground">Memuat data...</p>
-                            </div>
+                            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                            <p className="text-muted-foreground">Memuat data...</p>
                         </CardContent>
                     </Card>
                 </div>
@@ -230,38 +224,11 @@ export default function AttendanceClient() {
                 <div className="flex flex-col gap-4">
                     <div className="flex items-center justify-between">
                         <h1 className="text-3xl font-bold font-headline">Rekap Absensi Siswa</h1>
-                        <div className="flex items-center gap-2">
-                            <Button asChild variant="outline">
-                                <Link href="/attendance/import" className={hasPermission ? '' : 'hidden'}>
-                                    <PlusCircle className="mr-2 h-4 w-4" />
-                                    Tambah Absensi CSV
-                                </Link>
-                            </Button>
-                            <Button disabled>
-                                Ekspor PDF
-                            </Button>
-                        </div>
                     </div>
                     <Card>
                         <CardContent className="flex flex-col gap-5 items-center justify-center h-64">
-                            <Select value={selectedMonth} onValueChange={handleMonthChange}>
-                                <SelectTrigger className="w-[200px]">
-                                    <SelectValue placeholder="Pilih bulan" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {monthOptions.map((opt) => (
-                                        <SelectItem key={opt.value} value={opt.value}>
-                                            {opt.label}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                            <div className="text-center">
-                                <p className="text-destructive">Gagal memuat data absensi atau data tidak ada.</p>
-                                <p className="text-muted-foreground text-sm mt-1">
-                                    Silakan coba lagi nanti.
-                                </p>
-                            </div>
+                            <p className="text-destructive">Gagal memuat data absensi.</p>
+                            <p className="text-muted-foreground text-sm">Silakan coba lagi nanti.</p>
                         </CardContent>
                     </Card>
                 </div>
@@ -275,15 +242,18 @@ export default function AttendanceClient() {
                 <div className="flex items-center justify-between">
                     <h1 className="text-3xl font-bold font-headline">Rekap Absensi Siswa</h1>
                     <div className="flex items-center gap-2">
-                        <Button asChild variant="outline">
-                            <Link href="/attendance/import" className={hasPermission ? '' : 'hidden'}>
-                                <PlusCircle className="mr-2 h-4 w-4" />
-                                Tambah Absensi CSV
-                            </Link>
-                        </Button>
-                        <Button onClick={handleExport} disabled={isExporting || filteredAttendance.length === 0 || !hasPermission}>
+                        {hasPermission && (
+                            <Button asChild variant="outline" className="hidden">
+                                <Link href="/attendance/import">
+                                    <PlusCircle className="mr-2 h-4 w-4" />
+                                    Tambah Absensi CSV
+                                </Link>
+                            </Button>
+                        )}
+                        {/* ={filteredAttendance.length === 0 || !hasPermission} */}
+                        <Button disabled>
                             <Download className="mr-2 h-4 w-4" />
-                            {isExporting ? 'Mengekspor...' : 'Ekspor PDF'}
+                            Ekspor PDF
                         </Button>
                     </div>
                 </div>
@@ -335,66 +305,42 @@ export default function AttendanceClient() {
                             <TableBody>
                                 {currentAttendance.length > 0 ? (
                                     currentAttendance.map((att) => (
-                                        <TableRow key={att.nis_siswa}>
-                                            <TableCell>
-                                                {new Date(att.tanggal).toLocaleDateString('id-ID', {
-                                                    month: 'long',
-                                                    year: 'numeric',
-                                                })}
-                                            </TableCell>
-                                            <TableCell>{att.nis_siswa}</TableCell>
+                                        <TableRow key={att.nis}>
+                                            <TableCell>{getMonthLabel()}</TableCell>
+                                            <TableCell>{att.nis}</TableCell>
                                             <TableCell
                                                 className="font-medium cursor-pointer hover:underline"
-                                                onClick={() =>
-                                                    router.push(`/students/${att.nis_siswa}`)
-                                                }
+                                                onClick={() => router.push(`/students/${att.nis}`)}
                                             >
-                                                {att.nama_siswa}
+                                                {att.name}
                                             </TableCell>
-                                            <TableCell>{att.kelas}</TableCell>
+                                            <TableCell>{att.class || '-'}</TableCell>
                                             <TableCell>
                                                 <div className="flex items-center gap-2">
                                                     <span className="text-sm font-medium w-24">
-                                                        {att.hadir}/{att.total_hari} hari
+                                                        {att.hadir}/{att.total} hari
                                                     </span>
                                                     <Progress
-                                                        value={calculatePercentage(
-                                                            att.hadir,
-                                                            att.total_hari
-                                                        )}
+                                                        value={calculatePercentage(att.hadir, att.total)}
                                                         className="w-24 h-2"
                                                     />
                                                     <span className="text-xs text-muted-foreground">
-                                                        (
-                                                        {calculatePercentage(
-                                                            att.hadir,
-                                                            att.total_hari
-                                                        ).toFixed(0)}
-                                                        %)
+                                                        ({calculatePercentage(att.hadir, att.total).toFixed(0)}%)
                                                     </span>
                                                 </div>
                                             </TableCell>
                                             <TableCell>
                                                 <div className="flex gap-1">
-                                                    <Badge
-                                                        variant="success"
-                                                        className="bg-green-100 text-green-800 text-center"
-                                                    >
+                                                    <Badge className="bg-green-100 text-green-800 text-center">
                                                         {att.hadir} Hadir
                                                     </Badge>
-                                                    <Badge
-                                                        variant="warning"
-                                                        className="bg-yellow-100 text-yellow-800 text-center"
-                                                    >
+                                                    <Badge className="bg-blue-100 text-blue-800 text-center">
                                                         {att.sakit} Sakit
                                                     </Badge>
-                                                    <Badge
-                                                        variant="secondary"
-                                                        className='text-center'
-                                                    >
+                                                    <Badge className="bg-yellow-100 text-yellow-800 text-center">
                                                         {att.izin} Izin
                                                     </Badge>
-                                                    <Badge variant="destructive" className='text-center'>
+                                                    <Badge className="bg-red-100 text-red-800 text-center">
                                                         {att.alpha} Alpha
                                                     </Badge>
                                                 </div>

@@ -5,10 +5,7 @@ const secret = process.env.NEXTAUTH_SECRET;
 
 export async function GET(req: NextRequest, { params }: { params: { month: string } }) {
     const { month } = await params;
-    const formattedDate = new Date(`${month}-1`).toLocaleDateString('id-ID', {
-        month: 'long',
-        year: 'numeric'
-        });
+    
     try {
         const token = await getToken({ req, secret });
 
@@ -16,14 +13,18 @@ export async function GET(req: NextRequest, { params }: { params: { month: strin
             return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         }
 
-        // Penanganan kasus di mana param tidak ada sama sekali
-        if (!month) {
-            return NextResponse.json({ message: 'Param tidak ada.' }, { status: 400 });
+        // Validate month parameter (should be YYYY-MM format)
+        if (!month || !/^\d{4}-\d{1,2}$/.test(month)) {
+            return NextResponse.json({ message: 'Invalid month format. Use YYYY-MM' }, { status: 400 });
         }
 
-        // Tentukan URL dan parameter secara dinamis untuk mengurangi redundansi
+        // Format month to YYYY-MM (ensure 2-digit month)
+        const [year, monthNum] = month.split('-');
+        const formattedMonth = `${year}-${monthNum.padStart(2, '0')}`;
+
+        // Call backend API with new endpoint format
         const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
-        const apiUrl = `${baseUrl}/get-attendance-month/?tanggal=${formattedDate}`
+        const apiUrl = `${baseUrl}/api/attendance/month/${formattedMonth}`;
 
         const response = await fetch(apiUrl, {
             method: 'GET',
@@ -36,27 +37,21 @@ export async function GET(req: NextRequest, { params }: { params: { month: strin
         if (!response.ok) {
             const errorData = await response.json();
             return NextResponse.json(
-                { message: errorData.msg || 'Gagal mengambil data' },
+                { message: errorData.message || 'Failed to fetch attendance data' },
                 { status: response.status }
             );
         }
 
-        // Ambil data dari respons
-        const data = await response.json();
-        let finalData = [];
-        // Mengembalikan array kosong jika data bukan array
-        // Lakukan validasi dan filter data
-        // Pastikan `data` adalah array sebelum menggunakan filter
-        if (Array.isArray(data)) {
-            finalData = data.filter((v) => v && v.nis_siswa);
-        } else {
-            // Jika data bukan array, kembalikan array kosong untuk mencegah error
-            finalData = [];
-        }
+        // Get data from response
+        const responseData = await response.json();
+        
+        // Extract data array from response
+        // Backend returns: { statusCode, message, data: [...] }
+        const data = responseData.data || [];
 
-        return NextResponse.json(finalData);
+        return NextResponse.json(data);
     } catch (error) {
-        console.error(error);
+        console.error('Error fetching monthly attendance:', error);
         return NextResponse.json({ message: 'Internal server error' }, { status: 500 });
     }
 }

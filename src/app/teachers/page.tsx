@@ -36,10 +36,10 @@ export default function TeachersPage() {
     const { data: session } = useSession();
     const { toast } = useToast();
     const [currentPage, setCurrentPage] = useState(1);
-    const [deletingId, setDeletingId] = useState<number | null>(null);
+    const [deletingId, setDeletingId] = useState<string | null>(null);
 
     // Check if user has permission to add/edit/delete teachers
-    const hasPermission = session?.user?.jabatan === 'Admin' || session?.user?.jabatan === 'Guru BK';
+    const hasPermission = session?.user?.role === 'Admin' || session?.user?.role === 'Guru BK';
 
     if (error) {
         return (
@@ -83,7 +83,7 @@ export default function TeachersPage() {
         setCurrentPage((prev) => Math.min(prev + 1, totalPages));
     };
 
-    const handleDelete = async (teacherId: number) => {
+    const handleDelete = async (teacherId: string) => {
         if (!hasPermission) {
             toast({
                 title: "Akses Ditolak",
@@ -174,20 +174,20 @@ export default function TeachersPage() {
                                     currentTeachers.map((teacher) => (
                                         <TableRow key={teacher.id}>
                                             <TableCell className="font-medium">
-                                                {teacher.nama}
+                                                {teacher.name}
                                             </TableCell>
                                             <TableCell>{teacher.email}</TableCell>
                                             <TableCell>
                                                 <Badge
                                                     variant={
-                                                        teacher.jabatan === 'Pimpinan Sekolah'
+                                                        teacher.role === 'Admin' || teacher.role === 'Pimpinan Sekolah'
                                                             ? 'destructive'
-                                                            : teacher.jabatan === 'Guru BK'
+                                                            : teacher.role === 'Guru BK'
                                                             ? 'default'
                                                             : 'secondary'
                                                     }
                                                 >
-                                                    {teacher.jabatan}
+                                                    {teacher.role || 'Guru'}
                                                 </Badge>
                                             </TableCell>
                                             {hasPermission && (
@@ -221,6 +221,7 @@ export default function TeachersPage() {
                                                             >
                                                                 <DropdownMenuItem
                                                                     onSelect={(e) => e.preventDefault()}
+                                                                    disabled={teacher.id === session?.user?.id}
                                                                     className="text-destructive focus:text-destructive"
                                                                 >
                                                                     Hapus

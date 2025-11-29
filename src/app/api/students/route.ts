@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
             return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         }
 
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/get-students`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/students`, {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
             },
         });
 
-        const data = await response.json();
+        let data = await response.json();
         if (!response.ok) {
             return NextResponse.json(
                 { message: data.message || 'Failed to fetch students' },
@@ -30,11 +30,10 @@ export async function GET(req: NextRequest) {
             );
         }
 
-        data.forEach((siswa: any) => {
-            if (siswa.total_poin === ''){
-                siswa.total_poin = 0;
-            }
-        });
+        // Handle if response is wrapped in { data: [...] }
+        if (data.data && Array.isArray(data.data)) {
+            data = data.data;
+        }
 
         return NextResponse.json(data);
     } catch (error) {
@@ -51,14 +50,9 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         }
 
-        // Check if user has permission (Admin or Guru BK)
-        if (token.jabatan !== 'Admin' && token.jabatan !== 'Guru BK') {
-            return NextResponse.json({ message: 'Forbidden: Insufficient permissions' }, { status: 403 });
-        }
-
         const body = await req.json();
 
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/add-student`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/students`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -71,7 +65,7 @@ export async function POST(req: NextRequest) {
 
         if (!response.ok) {
             return NextResponse.json(
-                { message: data.msg || 'Failed to add student' },
+                { message: data.message || 'Failed to add student' },
                 { status: response.status }
             );
         }

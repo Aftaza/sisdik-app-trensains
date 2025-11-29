@@ -151,13 +151,13 @@ export function SidebarContent() {
                 <div className="flex items-center group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:justify-center">
                     <div className="flex items-center gap-3 group-data-[collapsible=icon]:hidden">
                         <Avatar className="h-9 w-9">
-                            <AvatarFallback>{getInitials(user?.nama)}</AvatarFallback>
+                            <AvatarFallback>{getInitials(user?.name)}</AvatarFallback>
                         </Avatar>
                         <div className="flex flex-col">
                             <p className="text-sm font-medium leading-none">
-                                {user?.nama || 'Loading...'}
+                                {user?.name || 'Loading...'}
                             </p>
-                            <p className="text-xs text-muted-foreground">{user?.jabatan || ''}</p>
+                            <p className="text-xs text-muted-foreground">{user?.role || 'Guru'}</p>
                         </div>
                     </div>
                     <DropdownMenu>

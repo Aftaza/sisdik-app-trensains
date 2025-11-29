@@ -26,7 +26,7 @@ import { useSession } from 'next-auth/react';
 
 const formSchema = z.object({
     name: z.string().min(3, 'Nama kelas harus diisi minimal 3 karakter.'),
-    homeroomTeacher: z.string().min(1, 'Wali kelas harus dipilih.'),
+    description: z.string().optional(),
 });
 
 type ClassFormProps = {
@@ -44,29 +44,30 @@ export function ClassForm({ children, classData, mutate }: ClassFormProps) {
     const isEditMode = !!classData;
 
     const hasPermission =
-        session?.user?.jabatan === 'Admin' || session?.user?.jabatan === 'Guru BK';
+        session?.user?.role === 'Admin' || session?.user?.role === 'Guru BK';
 
-    const teacherOptions = teachers?.filter((t) => t.jabatan === 'Wali Kelas')
-        .map((t) => ({ value: t.nama, label: t.nama })) || [];
+    // Note: Wali Kelas field removed from new API
+    // const teacherOptions = teachers?.filter((t) => t.role === 'Wali Kelas')
+    //     .map((t) => ({ value: t.name, label: t.name })) || [];
 
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
         defaultValues: {
             name: '',
-            homeroomTeacher: '',
+            description: '',
         },
     });
 
     useEffect(() => {
         if (isEditMode && classData) {
             form.reset({
-                name: classData?.nama_kelas,
-                homeroomTeacher: classData?.wali_kelas,
+                name: classData?.name || '',
+                description: classData?.description || '',
             });
         } else {
             form.reset({
                 name: '',
-                homeroomTeacher: '',
+                description: '',
             });
         }
     }, [isEditMode, classData, form, open]);
@@ -86,8 +87,8 @@ export function ClassForm({ children, classData, mutate }: ClassFormProps) {
             const method = isEditMode ? 'PUT' : 'POST';
             
             const body = {
-                nama_kelas: values.name,
-                wali_kelas: values.homeroomTeacher,
+                name: values.name,
+                description: values.description || '',
             };
 
             const response = await fetch(url, {
@@ -164,24 +165,13 @@ export function ClassForm({ children, classData, mutate }: ClassFormProps) {
                         />
                         <FormField
                             control={form.control}
-                            name="homeroomTeacher"
+                            name="description"
                             render={({ field }) => (
                                 <FormItem>
-                                    <FormLabel>Wali Kelas</FormLabel>
-                                    <Select onValueChange={field.onChange} value={field.value} disabled={teachersLoading}>
-                                        <FormControl>
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="Pilih wali kelas" />
-                                            </SelectTrigger>
-                                        </FormControl>
-                                        <SelectContent>
-                                            {teacherOptions.map((opt) => (
-                                                <SelectItem key={opt.value} value={opt.value}>
-                                                    {opt.label}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
+                                    <FormLabel>Deskripsi (Opsional)</FormLabel>
+                                    <FormControl>
+                                        <Input placeholder="Contoh: Kelas IPA" {...field} />
+                                    </FormControl>
                                     <FormMessage />
                                 </FormItem>
                             )}

@@ -20,7 +20,7 @@ export async function GET(req: NextRequest, { params }: { params: { nis: string 
 
         // Tentukan URL dan parameter secara dinamis untuk mengurangi redundansi
         const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
-        const apiUrl = `${baseUrl}/get-attendance-nis/?nis=${nis}`
+        const apiUrl = `${baseUrl}/api/attendance/student/${nis}`
 
         const response = await fetch(apiUrl, {
             method: 'GET',
@@ -40,18 +40,8 @@ export async function GET(req: NextRequest, { params }: { params: { nis: string 
 
         // Ambil data dari respons
         const data = await response.json();
-        let finalData = [];
-        // Mengembalikan array kosong jika data bukan array
-        // Lakukan validasi dan filter data
-        // Pastikan `data` adalah array sebelum menggunakan filter
-        if (Array.isArray(data)) {
-            finalData = data.filter((v) => v && v.nis_siswa);
-        } else {
-            // Jika data bukan array, kembalikan array kosong untuk mencegah error
-            finalData = [];
-        }
 
-        return NextResponse.json(finalData);
+        return NextResponse.json(data);
     } catch (error) {
         console.error(error);
         return NextResponse.json({ message: 'Internal server error' }, { status: 500 });

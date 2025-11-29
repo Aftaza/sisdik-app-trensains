@@ -3,22 +3,7 @@ import { getToken } from 'next-auth/jwt';
 
 const secret = process.env.NEXTAUTH_SECRET;
 
-// Helper function to convert date format to English month name
-function convertToEnglishMonthYear(dateString: string): string {
-    const [year, month] = dateString.split('-');
-    const date = new Date(parseInt(year), parseInt(month) - 1, 1);
-    
-    // Format to English month name and year
-    const monthNames = [
-        'January', 'February', 'March', 'April', 'May', 'June',
-        'July', 'August', 'September', 'October', 'November', 'December'
-    ];
-    
-    const monthName = monthNames[date.getMonth()];
-    return `${monthName} ${year}`;
-}
-
-// POST method - add a new attendance log from CSV file
+// POST method - bulk upload attendance from CSV file
 export async function POST(req: NextRequest) {
     try {
         const token = await getToken({ req, secret });
@@ -30,26 +15,10 @@ export async function POST(req: NextRequest) {
         // Parse form data (including file)
         const formData = await req.formData();
         
-        // Extract form fields
-        const classValue = formData.get('class') as string;
-        const dateValue = formData.get('date') as string;
+        // Extract file from form data
         const file = formData.get('file') as File | null;
 
         // Validate required fields
-        if (!classValue) {
-            return NextResponse.json(
-                { message: 'Class is required' }, 
-                { status: 400 }
-            );
-        }
-
-        if (!dateValue) {
-            return NextResponse.json(
-                { message: 'Date is required' }, 
-                { status: 400 }
-            );
-        }
-
         if (!file) {
             return NextResponse.json(
                 { message: 'CSV file is required' }, 
@@ -57,25 +26,20 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        // Convert date format to English month name (e.g., "August 2025")
-        const englishMonthYear = convertToEnglishMonthYear(dateValue);
-
-        // Build query parameters
-        const queryParams = new URLSearchParams({
-            kelas: classValue,
-            bulan: englishMonthYear
-        });
+        // Create new FormData for backend API
+        const backendFormData = new FormData();
+        backendFormData.append('file', file);
         
-        // Forward request to backend API with file as binary body and query parameters
+        // Forward request to backend API with multipart/form-data
         const response = await fetch(
-            `${process.env.NEXT_PUBLIC_API_BASE_URL}/add-mass-attendance-student?${queryParams.toString()}`,
+            `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/attendance/bulk`,
             {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'text/csv',
                     Authorization: `Bearer ${token.jwt}`,
+                    // Don't set Content-Type, let browser set it with boundary
                 },
-                body: file, // Send file as binary directly
+                body: backendFormData,
             }
         );
 
@@ -93,7 +57,7 @@ export async function POST(req: NextRequest) {
         if (!response.ok) {
             return NextResponse.json(
                 { 
-                    message: responseData.msg || responseData.message || 'Failed to add attendance' 
+                    message: responseData.message || 'Failed to add attendance' 
                 },
                 { status: response.status }
             );

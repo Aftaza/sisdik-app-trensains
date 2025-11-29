@@ -38,7 +38,7 @@ export default function SanctionsPage() {
     const { data: session } = useSession();
 
     // Check if user has permission (Admin or Guru BK)
-    const userRole = session?.user?.jabatan;
+    const userRole = session?.user?.role;
     const canPerformActions = userRole === 'Admin' || userRole === 'Guru BK';
 
     if (error) {
@@ -83,7 +83,7 @@ export default function SanctionsPage() {
         setCurrentPage((prev) => Math.min(prev + 1, totalPages));
     };
 
-    const handleDelete = async (sanctionId: number) => {
+    const handleDelete = async (sanctionId: string) => {
         if (!canPerformActions) {
             toast({
                 title: 'Akses Ditolak',
@@ -175,7 +175,12 @@ export default function SanctionsPage() {
                                             <TableCell className="font-medium">
                                                 {startIndex + index + 1}
                                             </TableCell>
-                                            <TableCell>{sanction.pembinaan}</TableCell>
+                                            <TableCell>
+                                                {sanction.name && sanction.name.length > 0 
+                                                    ? sanction.name.join(', ') 
+                                                    : '-'
+                                                }
+                                            </TableCell>
                                             <TableCell>{sanction.start_poin}-{sanction.end_poin}</TableCell>
                                             {canPerformActions && (
                                                 <TableCell>

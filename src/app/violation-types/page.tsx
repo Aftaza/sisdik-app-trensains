@@ -38,7 +38,7 @@ export default function ViolationTypesPage() {
     const { toast } = useToast();
 
     // Check if user has admin or BK teacher role
-    const userRole = session?.user?.jabatan;
+    const userRole = session?.user?.role;
     const canPerformActions = userRole === 'Admin' || userRole === 'Guru BK';
 
     const totalPages = data && data.length > 0 ? Math.ceil(data.length / ROWS_PER_PAGE) : 0;
@@ -190,7 +190,7 @@ export default function ViolationTypesPage() {
                                 ) : (
                                     currentViolationTypes.map((type: ViolationType) => (
                                         <TableRow key={type.id}>
-                                            <TableCell className="font-medium">{type.nama_pelanggaran}</TableCell>
+                                            <TableCell className="font-medium">{type.name || '-'}</TableCell>
                                             <TableCell>
                                                 <Badge
                                                     variant={
@@ -206,15 +206,15 @@ export default function ViolationTypesPage() {
                                                             : ''
                                                     }
                                                 >
-                                                    {type.kategori}
+                                                    {type.kategori || '-'}
                                                 </Badge>
                                             </TableCell>
                                             <TableCell className="text-center">
                                                 <Badge variant="destructive">
-                                                    {type.poin}
+                                                    {type.poin || 0}
                                                 </Badge>
                                             </TableCell>
-                                            <TableCell>{type.pembuat}</TableCell>
+                                            <TableCell>{type.teachers?.name || '-'}</TableCell>
                                             {canPerformActions && (
                                                 <TableCell>
                                                     <DropdownMenu>
@@ -240,7 +240,7 @@ export default function ViolationTypesPage() {
                                                                 </DropdownMenuItem>
                                                             </ViolationTypeForm>
                                                             <DeleteConfirmationDialog
-                                                                onConfirm={() => handleDelete(type.id.toString())}
+                                                                onConfirm={() => handleDelete(type.id)}
                                                             >
                                                                 <DropdownMenuItem
                                                                     onSelect={(e) => e.preventDefault()}

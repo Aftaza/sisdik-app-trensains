@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
             return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         }
 
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/get-classes`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/classes`, {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
@@ -20,12 +20,17 @@ export async function GET(req: NextRequest) {
             },
         });
 
-        const data = await response.json();
+        let data = await response.json();
         if (!response.ok) {
             return NextResponse.json(
-                { message: data.msg || 'Failed to fetch classes' },
+                { message: data.message || 'Failed to fetch classes' },
                 { status: response.status }
             );
+        }
+
+        // Handle if response is wrapped in { data: [...] }
+        if (data.data && Array.isArray(data.data)) {
+            data = data.data;
         }
 
         return NextResponse.json(data);
@@ -43,30 +48,21 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         }
 
-        // Check if user has admin or BK teacher role
-        const userRole = token.jabatan;
-        if (userRole !== 'Admin' && userRole !== 'Guru BK') {
-            return NextResponse.json(
-                { message: 'Forbidden: Only admin and BK teacher can perform this action' },
-                { status: 403 }
-            );
-        }
-
         const body = await req.json();
         console.log(body);
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/add-class`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/classes`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 Authorization: `Bearer ${token.jwt}`,
             },
-            body: JSON.stringify({ ...body }),
+            body: JSON.stringify(body),
         });
 
         const data = await response.json();
         if (!response.ok) {
             return NextResponse.json(
-                { message: data.msg || 'Failed to add class' },
+                { message: data.message || 'Failed to add class' },
                 { status: response.status }
             );
         }

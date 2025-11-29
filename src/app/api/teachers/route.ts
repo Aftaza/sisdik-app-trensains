@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
             return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         }
 
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/get-teachers`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/teachers`, {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
@@ -19,14 +19,20 @@ export async function GET(req: NextRequest) {
             },
         });
 
-        const data = await response.json();
+        let data = await response.json();
 
         if (!response.ok) {
             return NextResponse.json(
-                { message: data.msg || 'Failed to fetch teachers' },
+                { message: data.message || 'Failed to fetch teachers' },
                 { status: response.status }
             );
         }
+
+        // Handle if response is wrapped in { data: [...] }
+        if (data.data && Array.isArray(data.data)) {
+            data = data.data;
+        }
+
         return NextResponse.json(data);
     } catch (error) {
         console.error(error);
@@ -42,14 +48,9 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         }
 
-        // Check if user has permission (Admin or Guru BK)
-        if (token.jabatan !== 'Admin' && token.jabatan !== 'Guru BK') {
-            return NextResponse.json({ message: 'Forbidden: Insufficient permissions' }, { status: 403 });
-        }
-
         const body = await req.json();
 
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/add-teacher`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/teachers`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

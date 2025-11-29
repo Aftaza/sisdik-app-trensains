@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
             return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         }
 
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/get-sanctions`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/sanctions`, {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
@@ -21,12 +21,17 @@ export async function GET(req: NextRequest) {
             },
         });
 
-        const data = await response.json();
+        let data = await response.json();
         if (!response.ok) {
             return NextResponse.json(
-                { message: data.msg || 'Failed to fetch sanctions' },
+                { message: data.message || 'Failed to fetch sanctions' },
                 { status: response.status }
             );
+        }
+
+        // Handle if response is wrapped in { data: [...] }
+        if (data.data && Array.isArray(data.data)) {
+            data = data.data;
         }
 
         return NextResponse.json(data);
@@ -45,18 +50,9 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         }
 
-        // Check if user has admin or BK teacher role
-        const userRole = token.jabatan;
-        if (userRole !== 'Admin' && userRole !== 'Guru BK') {
-            return NextResponse.json(
-                { message: 'Forbidden: Only admin and BK teacher can perform this action' },
-                { status: 403 }
-            );
-        }
-
         const body = await req.json();
         
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/add-sanction`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/sanctions`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -68,7 +64,7 @@ export async function POST(req: NextRequest) {
         const data = await response.json();
         if (!response.ok) {
             return NextResponse.json(
-                { message: data.msg || 'Failed to add sanction' },
+                { message: data.message || 'Failed to add sanction' },
                 { status: response.status }
             );
         }

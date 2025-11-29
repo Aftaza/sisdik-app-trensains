@@ -13,31 +13,22 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
             return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         }
 
-        // Check if user has admin or BK teacher role
-        const userRole = token.jabatan;
-        if (userRole !== 'Admin' && userRole !== 'Guru BK') {
-            return NextResponse.json(
-                { message: 'Forbidden: Only admin and BK teacher can perform this action' },
-                { status: 403 }
-            );
-        }
-
         const body = await req.json();
         
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/edit-class`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/classes/${id}`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
                 Authorization: `Bearer ${token.jwt}`,
             },
-            body: JSON.stringify({ ...body, id: id }),
+            body: JSON.stringify(body),
         });
         
         const data = await response.json();
         
         if (!response.ok) {
             return NextResponse.json(
-                { message: data.msg || 'Failed to edit class' },
+                { message: data.message || 'Failed to edit class' },
                 { status: response.status }
             );
         }
@@ -59,29 +50,19 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
             return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         }
 
-        // Check if user has admin or BK teacher role
-        const userRole = token.jabatan;
-        if (userRole !== 'Admin' && userRole !== 'Guru BK') {
-            return NextResponse.json(
-                { message: 'Forbidden: Only admin and BK teacher can perform this action' },
-                { status: 403 }
-            );
-        }
-
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/delete-class`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/classes/${id}`, {
             method: 'DELETE',
             headers: {
                 'Content-Type': 'application/json',
                 Authorization: `Bearer ${token.jwt}`,
             },
-            body: JSON.stringify({ id: id })
         });
 
         const data = await response.json();
         
         if (!response.ok) {
             return NextResponse.json(
-                { message: data.msg || 'Failed to delete class' },
+                { message: data.message || 'Failed to delete class' },
                 { status: response.status }
             );
         }

@@ -1,4 +1,4 @@
-// app/api/students/[id]/route.ts
+// app/api/sanctions/[id]/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 
@@ -18,7 +18,7 @@ export async function GET(
         }
 
         // Memanggil endpoint backend dengan parameter ID
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/get-sanction/?nis=${id}`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/sanctions/${id}`, {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
@@ -30,12 +30,11 @@ export async function GET(
         
         if (!response.ok) {
             return NextResponse.json(
-                { message: data.msg || 'Failed to fetch data' },
+                { message: data.message || 'Failed to fetch data' },
                 { status: response.status }
             );
         }
 
-        // Mengembalikan data siswa tunggal
         return NextResponse.json(data);
     } catch (error) {
         console.error(error);
@@ -54,30 +53,21 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
             return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         }
 
-        // Check if user has admin or BK teacher role
-        const userRole = token.jabatan;
-        if (userRole !== 'Admin' && userRole !== 'Guru BK') {
-            return NextResponse.json(
-                { message: 'Forbidden: Only admin and BK teacher can perform this action' },
-                { status: 403 }
-            );
-        }
-
         const body = await req.json();
         console.log(body);
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/edit-sanction`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/sanctions/${id}`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
                 Authorization: `Bearer ${token.jwt}`,
             },
-            body: JSON.stringify({ ...body, id: id }),
+            body: JSON.stringify(body),
         });
 
         const data = await response.json();
         if (!response.ok) {
             return NextResponse.json(
-                { message: data.msg || 'Failed to edit sanction' },
+                { message: data.message || 'Failed to edit sanction' },
                 { status: response.status }
             );
         }
@@ -99,29 +89,19 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
         if (!token || !token.jwt) {
             return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         }
-
-        // Check if user has admin or BK teacher role
-        const userRole = token.jabatan;
-        if (userRole !== 'Admin' && userRole !== 'Guru BK') {
-            return NextResponse.json(
-                { message: 'Forbidden: Only admin and BK teacher can perform this action' },
-                { status: 403 }
-            );
-        }
         
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/delete-sanction`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/sanctions/${id}`, {
             method: 'DELETE',
             headers: {
                 'Content-Type': 'application/json',
                 Authorization: `Bearer ${token.jwt}`,
             },
-            body: JSON.stringify({ id: id}),
         });
 
         const data = await response.json();
         if (!response.ok) {
             return NextResponse.json(
-                { message: data.msg || 'Failed to delete sanction' },
+                { message: data.message || 'Failed to delete sanction' },
                 { status: response.status }
             );
         }

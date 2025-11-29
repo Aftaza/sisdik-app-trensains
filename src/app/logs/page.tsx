@@ -18,16 +18,24 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 
+// Updated interface to match new API structure
 interface Violation {
-    id: number;
-    tanggal_terjadi: string;
-    nis_siswa: string;
-    id_siswa: string;
-    nama_siswa: string;
-    jenis_pelanggaran: string;
-    catatan: string;
-    pelapor: string;
-    guru_bk: string;
+    id: string;
+    student_id: string;
+    violation_type_id: string;
+    poin: number;
+    reported_by: string;
+    notes: string;
+    created_at: string;
+    updated_at: string;
+    students: {
+        nis: string;
+        name: string;
+    };
+    violation_types: {
+        name: string;
+        poin: number;
+    };
 }
 
 const ROWS_PER_PAGE = 10;
@@ -94,9 +102,9 @@ export default function ViolationLogsPage() {
                                     <TableHead>NIS</TableHead>
                                     <TableHead>Nama Siswa</TableHead>
                                     <TableHead>Pelanggaran</TableHead>
+                                    <TableHead>Poin</TableHead>
                                     <TableHead>Catatan</TableHead>
                                     <TableHead>Pelapor</TableHead>
-                                    <TableHead>Guru BK</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -117,7 +125,7 @@ export default function ViolationLogsPage() {
                                     currentViolations.map((v) => (
                                         <TableRow key={v.id}>
                                             <TableCell>
-                                                {new Date(v.tanggal_terjadi).toLocaleDateString(
+                                                {new Date(v.created_at).toLocaleDateString(
                                                     'id-ID',
                                                     {
                                                         year: 'numeric',
@@ -126,21 +134,29 @@ export default function ViolationLogsPage() {
                                                     }
                                                 )}
                                             </TableCell>
-                                            <TableCell>{v.nis_siswa}</TableCell>
+                                            <TableCell>{v.students?.nis || '-'}</TableCell>
                                             <TableCell>
                                                 <Link
-                                                    href={`/students/${v.nis_siswa}`}
+                                                    href={`/students/${v.students?.nis || v.student_id}`}
                                                     className="font-medium hover:underline"
                                                 >
-                                                    {v.nama_siswa}
+                                                    {v.students?.name || '-'}
                                                 </Link>
                                             </TableCell>
                                             <TableCell>
-                                                <Badge variant="secondary">{v.jenis_pelanggaran}</Badge>
+                                                <Badge variant="secondary">
+                                                    {v.violation_types?.name || '-'}
+                                                </Badge>
                                             </TableCell>
-                                            <TableCell>{v.catatan}</TableCell>
-                                            <TableCell>{v.pelapor}</TableCell>
-                                            <TableCell>{v.guru_bk}</TableCell>
+                                            <TableCell>
+                                                <Badge variant="destructive">
+                                                    +{v.violation_types?.poin || v.poin || 0}
+                                                </Badge>
+                                            </TableCell>
+                                            <TableCell className="max-w-xs truncate">
+                                                {v.notes || '-'}
+                                            </TableCell>
+                                            <TableCell>{v.reported_by || '-'}</TableCell>
                                         </TableRow>
                                     ))
                                 )}

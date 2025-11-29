@@ -1,7 +1,7 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm } from 'react-hook-form';
+import { useForm, useFieldArray } from 'react-hook-form';
 import { z } from 'zod';
 import {
     Dialog,
@@ -17,15 +17,18 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from './ui/input';
 import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { Textarea } from './ui/textarea';
 import type { Sanction } from '@/lib/data';
 import { useSession } from 'next-auth/react';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Plus, X } from 'lucide-react';
 import { useSWRConfig } from 'swr';
 
 const formSchema = z
     .object({
-        coaching: z.string().min(5, 'Deskripsi pembinaan harus diisi minimal 5 karakter.'),
+        names: z.array(
+            z.object({
+                value: z.string().min(3, 'Pembinaan harus diisi minimal 3 karakter.')
+            })
+        ).min(1, 'Minimal harus ada 1 pembinaan.'),
         start_point: z.preprocess(
             (val) => (val === '' || val === undefined ? undefined : Number(val)),
             z.number().int().min(0, 'Poin awal harus berupa angka positif.')
@@ -54,28 +57,37 @@ export function SanctionForm({ children, sanction }: SanctionFormProps) {
     const isEditMode = !!sanction;
 
     // Check if user has permission (Admin or Guru BK)
-    const userRole = session?.user?.jabatan;
+    const userRole = session?.user?.role;
     const canPerformActions = userRole === 'Admin' || userRole === 'Guru BK';
 
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
         defaultValues: {
-            coaching: '',
+            names: [{ value: '' }],
             start_point: 0,
             end_point: 0,
         },
     });
 
+    const { fields, append, remove } = useFieldArray({
+        control: form.control,
+        name: 'names',
+    });
+
     useEffect(() => {
         if (isEditMode && sanction) {
+            const nameFields = sanction.name && sanction.name.length > 0
+                ? sanction.name.map(n => ({ value: n }))
+                : [{ value: '' }];
+            
             form.reset({
-                coaching: sanction.pembinaan,
+                names: nameFields,
                 start_point: sanction.start_poin,
                 end_point: sanction.end_poin,
             });
         } else {
             form.reset({
-                coaching: '',
+                names: [{ value: '' }],
                 start_point: 0,
                 end_point: 0,
             });
@@ -94,14 +106,16 @@ export function SanctionForm({ children, sanction }: SanctionFormProps) {
 
         setIsLoading(true);
         try {
-            const pembinaan = values.coaching.split(', ')
+            // Extract names from array of objects
+            const names = values.names.map(n => n.value).filter(v => v.trim() !== '');
+            
             const response = await fetch(isEditMode ? `/api/sanctions/${sanction?.id}` : '/api/sanctions', {
                 method: isEditMode ? 'PUT' : 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    pembinaan: pembinaan,
+                    name: names,
                     start_poin: values.start_point,
                     end_poin: values.end_point,
                 }),
@@ -157,7 +171,7 @@ export function SanctionForm({ children, sanction }: SanctionFormProps) {
             >
                 {children}
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px]">
+            <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                     <DialogTitle className="font-headline">
                         {isEditMode ? 'Edit Sanksi' : 'Formulir Sanksi Baru'}
@@ -170,22 +184,50 @@ export function SanctionForm({ children, sanction }: SanctionFormProps) {
                 </DialogHeader>
                 <Form {...form}>
                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                        <FormField
-                            control={form.control}
-                            name="coaching"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Deskripsi Pembinaan/Sanksi</FormLabel>
-                                    <FormControl>
-                                        <Textarea
-                                            placeholder="Pisahkan dengan ', ' untuk pembinaan lebih dari satu. Contoh: Membersihkan kamar mandi, mengaji, dll."
-                                            {...field}
-                                        />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
+                        <div className="space-y-3">
+                            <div className="flex items-center justify-between">
+                                <FormLabel>Pembinaan/Sanksi</FormLabel>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => append({ value: '' })}
+                                >
+                                    <Plus className="h-4 w-4 mr-1" />
+                                    Tambah
+                                </Button>
+                            </div>
+                            {fields.map((field, index) => (
+                                <FormField
+                                    key={field.id}
+                                    control={form.control}
+                                    name={`names.${index}.value`}
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <div className="flex gap-2">
+                                                <FormControl>
+                                                    <Input
+                                                        placeholder={`Pembinaan ${index + 1}`}
+                                                        {...field}
+                                                    />
+                                                </FormControl>
+                                                {fields.length > 1 && (
+                                                    <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        onClick={() => remove(index)}
+                                                    >
+                                                        <X className="h-4 w-4" />
+                                                    </Button>
+                                                )}
+                                            </div>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                            ))}
+                        </div>
                         <div className="grid grid-cols-2 gap-4">
                             <FormField
                                 control={form.control}

@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
             return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         }
 
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/get-violations-log`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/violation-logs`, {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
@@ -20,23 +20,18 @@ export async function GET(req: NextRequest) {
             },
         });
 
-        // Ambil data dari respons
         let data = await response.json();
-
-        // Lakukan validasi dan filter data
-        // Pastikan `data` adalah array sebelum menggunakan filter
-        if (Array.isArray(data)) {
-            data = data.filter((v) => v && v.tanggal_terjadi);
-        } else {
-            // Jika data bukan array, kembalikan array kosong untuk mencegah error
-            data = [];
-        }
 
         if (!response.ok) {
             return NextResponse.json(
-                { message: data.msg || 'Failed to fetch violation logs' },
+                { message: data.message || 'Failed to fetch violation logs' },
                 { status: response.status }
             );
+        }
+
+        // Handle if response is wrapped in { data: [...] }
+        if (data.data && Array.isArray(data.data)) {
+            data = data.data;
         }
 
         return NextResponse.json(data);
@@ -57,7 +52,7 @@ export async function POST(req: NextRequest) {
 
         const body = await req.json();
         
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/add-violation-log`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/violation-logs`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -70,7 +65,7 @@ export async function POST(req: NextRequest) {
 
         if (!response.ok) {
             return NextResponse.json(
-                { message: data.msg || 'Failed to add violation log' },
+                { message: data.message || 'Failed to add violation log' },
                 { status: response.status }
             );
         }

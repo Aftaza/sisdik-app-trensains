@@ -1,655 +1,41 @@
 'use client';
 
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from '@/components/ui/table';
-import { Button } from '@/components/ui/button';
-import {
-    PlusCircle,
-    ChevronLeft,
-    ChevronRight,
-    SquareCheck,
-    SquareX,
-    MoreVertical,
-    Loader2,
-} from 'lucide-react';
-import type { AttendanceDaily, GroupedAttendance, Sanction, Student, Violation } from '@/lib/data';
-import { useEffect, useMemo, useState } from 'react';
-import {
-    DropdownMenu,
-    DropdownMenuContent,
-    DropdownMenuItem,
-    DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { DeleteConfirmationDialog } from '@/components/delete-confirmation-dialog';
 import useSWR, { useSWRConfig } from 'swr';
 import { fetcher } from '@/lib/fetcher';
 import { useToast } from '@/hooks/use-toast';
-import { useSession } from 'next-auth/react';
-import { ViolationLogForm } from '@/components/violation-log-form';
-import { AttendanceForm } from '@/components/attendance-form';
-import { Progress } from '@/components/ui/progress';
+import type { Student, Violation } from '@/lib/data';
+import { StudentHeader } from '@/components/student-detail/StudentHeader';
+import { StudentActions } from '@/components/student-detail/StudentActions';
+import { StudentSanctionsCard } from '@/components/student-detail/StudentSanctionsCard';
+import { StudentViolationsTable } from '@/components/student-detail/StudentViolationsTable';
+import { StudentErrorState } from '@/components/student-detail/StudentErrorState';
+import { StudentLoadingState } from '@/components/student-detail/StudentLoadingState';
+
+// Import attendance components (keeping them here for now as they're complex)
+import { AttendanceLogCard } from '@/components/student-detail/AttendanceLogCard';
+import { AttendanceSummaryCard } from '@/components/student-detail/AttendanceSummaryCard';
 
 type StudentProfileClientProps = {
     id: string;
 };
 
-interface SanctionsResponse {
-    status: string | undefined;
-    start_poin: number;
-    end_poin: number;
-    pembinaan: string[];
-}
-
-const VIOLATIONS_PER_PAGE = 5;
-const ATTENDANCE_PER_PAGE = 5;
-
-// Komponen SanctionsCard
-function SanctionsCard({ studentId }: { studentId: string | undefined }) {
-    const {
-        data: sanctionsData,
-        error: sanctionError,
-        isLoading: sanctionLoading,
-    } = useSWR<SanctionsResponse>(studentId ? `/api/sanctions/${studentId}` : null, fetcher);
-    const { toast } = useToast();
-
-    // ✅ PERBAIKAN: Gunakan localStorage untuk inisialisasi state
-    const [completedSanctions, setCompletedSanctions] = useState<Set<string>>(() => {
-        if (typeof window !== 'undefined' && studentId) {
-            const stored = localStorage.getItem(`completed-sanctions-${studentId}`);
-            if (stored) {
-                try {
-                    // Pastikan data yang disimpan adalah array yang valid
-                    const parsed = JSON.parse(stored);
-                    if (Array.isArray(parsed)) {
-                        return new Set(parsed);
-                    }
-                } catch (e) {
-                    console.error('Failed to parse localStorage data:', e);
-                }
-            }
-        }
-        return new Set();
-    });
-
-    useEffect(() => {
-        if (studentId) {
-            localStorage.setItem(
-                `completed-sanctions-${studentId}`,
-                JSON.stringify(Array.from(completedSanctions))
-            );
-        }
-    }, [completedSanctions, studentId]);
-
-    const handleToggleSanction = (sanction: string) => {
-        setCompletedSanctions((prev) => {
-            const newSet = new Set(prev);
-            if (newSet.has(sanction)) {
-                newSet.delete(sanction);
-            } else {
-                newSet.add(sanction);
-            }
-            return newSet;
-        });
-        toast({
-            title: 'Status Pembinaan Diperbarui',
-            description: completedSanctions.has(sanction)
-                ? `"${sanction}" ditandai belum selesai.`
-                : `"${sanction}" ditandai sudah selesai.`,
-        });
-    };
-
-    if (sanctionLoading) {
-        return (
-            <Card>
-                <CardHeader>
-                    <CardTitle>Tindak Lanjut & Sanksi</CardTitle>
-                </CardHeader>
-                <CardContent className="flex items-center justify-center h-48">
-                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                </CardContent>
-            </Card>
-        );
-    }
-
-    if (sanctionError) {
-        return (
-            <Card>
-                <CardHeader>
-                    <CardTitle>Tindak Lanjut & Sanksi</CardTitle>
-                </CardHeader>
-                <CardContent className="text-center text-muted-foreground p-6">
-                    Data tidak ditemukan.
-                </CardContent>
-            </Card>
-        );
-    }
-
-    if (
-        !sanctionsData ||
-        sanctionsData.status === 'error' ||
-        sanctionsData.pembinaan.length === 0
-    ) {
-        return (
-            <Card>
-                <CardHeader>
-                    <CardTitle>Tindak Lanjut & Sanksi</CardTitle>
-                </CardHeader>
-                <CardContent className="text-center text-muted-foreground p-6">
-                    Tidak ada sanksi yang berlaku.
-                </CardContent>
-            </Card>
-        );
-    }
-
-    return (
-        <Card>
-            <CardHeader>
-                <CardTitle>Tindak Lanjut & Sanksi</CardTitle>
-            </CardHeader>
-            <CardContent>
-                <p className="mb-4 text-sm text-muted-foreground">
-                    Rentang Poin: {sanctionsData.start_poin}-{sanctionsData.end_poin}
-                </p>
-                <ul className="space-y-4">
-                    {sanctionsData.pembinaan.map((pembinaan, index) => {
-                        const isCompleted = completedSanctions.has(pembinaan);
-                        return (
-                            <li
-                                key={index}
-                                className="flex items-start gap-4 cursor-pointer p-2 -m-2 rounded-lg hover:bg-accent"
-                                onClick={() => handleToggleSanction(pembinaan)}
-                            >
-                                <div>
-                                    {isCompleted ? (
-                                        <SquareCheck className="h-5 w-5 text-green-500" />
-                                    ) : (
-                                        <SquareX className="h-5 w-5 text-muted-foreground" />
-                                    )}
-                                </div>
-                                <div>
-                                    <p className="font-medium">{pembinaan}</p>
-                                </div>
-                            </li>
-                        );
-                    })}
-                </ul>
-            </CardContent>
-        </Card>
-    );
-}
-
-function AttendanceSummaryCard({ studentId }: { studentId: string }) {
-    const { data: attendanceData, error, isLoading } = useSWR<AttendanceDaily[]>(
-        studentId ? `/api/attendances/get-nis/${studentId}` : null,
-        fetcher
-    );
-    const { toast } = useToast();
-
-    // Gunakan useMemo untuk mengelompokkan data dan menghindari perhitungan berulang
-    const groupedData = useMemo(() => {
-        if (!attendanceData || attendanceData.length === 0) return [];
-
-        // Kelompokkan data berdasarkan bulan/tahun
-        const grouped: Record<string, GroupedAttendance> = {};
-
-        for (const data of attendanceData) {
-            const { id, nis_siswa, nama_siswa, tanggal, kelas, status_absensi } = data;
-            
-            // Buat key berdasarkan bulan/tahun
-            const date = new Date(tanggal);
-            const bulanTahunKey = `${date.getFullYear()}-${date.getMonth()}`;
-            const bulanTahunDisplay = date.toLocaleDateString('id-ID', {
-                month: 'long',
-                year: 'numeric',
-            });
-
-            if (!grouped[bulanTahunKey]) {
-                grouped[bulanTahunKey] = {
-                    id: id,
-                    nis_siswa: nis_siswa,
-                    nama_siswa: nama_siswa,
-                    kelas: kelas,
-                    bulanTahun: bulanTahunDisplay,
-                    total_hari: 0,
-                    hadir: 0,
-                    sakit: 0,
-                    izin: 0,
-                    alpha: 0
-                };
-            }
-
-            // Tambahkan 1 ke total_hari
-            grouped[bulanTahunKey].total_hari += 1;
-
-            // Tambahkan 1 ke status kehadiran yang sesuai
-            const status = status_absensi.toLowerCase();
-            switch (status) {
-                case 'hadir':
-                    grouped[bulanTahunKey].hadir += 1;
-                    break;
-                case 'sakit':
-                    grouped[bulanTahunKey].sakit += 1;
-                    break;
-                case 'izin':
-                    grouped[bulanTahunKey].izin += 1;
-                    break;
-                case 'alpha':
-                    grouped[bulanTahunKey].alpha += 1;
-                    break;
-                default:
-                    // Handle status tidak dikenal jika diperlukan
-                    break;
-            }
-        }
-
-        return Object.values(grouped);
-    }, [attendanceData]);
-
-    const calculatePercentage = (present: number, total: number) => {
-        if (total === 0) return 0;
-        return (present / total) * 100;
-    };
-
-    if (isLoading) {
-        return (
-            <Card>
-                <CardHeader>
-                    <CardTitle>Rekap Absensi</CardTitle>
-                </CardHeader>
-                <CardContent className="flex items-center justify-center h-48">
-                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                </CardContent>
-            </Card>
-        );
-    }
-
-    if (error) {
-        return (
-            <Card>
-                <CardHeader>
-                    <CardTitle>Rekap Absensi</CardTitle>
-                </CardHeader>
-                <CardContent className="text-center text-destructive p-6">
-                    Terjadi kesalahan saat memuat data.
-                </CardContent>
-            </Card>
-        );
-    }
-
-    if (!attendanceData || attendanceData.length === 0 || groupedData.length === 0) {
-        return (
-            <Card>
-                <CardHeader>
-                    <CardTitle>Rekap Absensi</CardTitle>
-                </CardHeader>
-                <CardContent className="text-center text-muted-foreground p-6">
-                    Data tidak ditemukan.
-                </CardContent>
-            </Card>
-        );
-    }
-
-    return (
-        <Card>
-            <CardHeader>
-                <CardTitle>Rekap Absensi</CardTitle>
-            </CardHeader>
-            <CardContent>
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>Bulan</TableHead>
-                            <TableHead className="text-center">Hadir</TableHead>
-                            <TableHead className="text-center">Sakit</TableHead>
-                            <TableHead className="text-center">Izin</TableHead>
-                            <TableHead className="text-center">Alpha</TableHead>
-                            <TableHead className="text-center">Total</TableHead>
-                            <TableHead className="text-center">Persentase</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {groupedData.map((att) => (
-                            <TableRow key={att.id}>
-                                <TableCell className="font-medium">
-                                    {att.bulanTahun}
-                                </TableCell>
-                                <TableCell className="text-center">
-                                    <Badge variant="secondary" className="bg-green-100 text-green-800">
-                                        {att.hadir}
-                                    </Badge>
-                                </TableCell>
-                                <TableCell className="text-center">
-                                    <Badge variant="secondary" className="bg-yellow-100 text-yellow-800">
-                                        {att.sakit}
-                                    </Badge>
-                                </TableCell>
-                                <TableCell className="text-center">
-                                    <Badge variant="secondary" className="bg-blue-100 text-blue-800">
-                                        {att.izin}
-                                    </Badge>
-                                </TableCell>
-                                <TableCell className="text-center">
-                                    <Badge variant="destructive">{att.alpha}</Badge>
-                                </TableCell>
-                                <TableCell className="text-center font-medium">
-                                    {att.total_hari}
-                                </TableCell>
-                                <TableCell className="text-center">
-                                    <div className="flex flex-col items-center">
-                                        <span className="text-sm font-medium">
-                                            {calculatePercentage(att.hadir, att.total_hari).toFixed(0)}%
-                                        </span>
-                                        <Progress
-                                            value={calculatePercentage(att.hadir, att.total_hari)}
-                                            className="w-16 h-1 mt-1"
-                                        />
-                                    </div>
-                                </TableCell>
-                            </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
-            </CardContent>
-        </Card>
-    );
-}
-
-function AttendanceLogCard({ studentId }: { studentId: string }) {
-    const [currentPage, setCurrentPage] = useState(1);
-    const [editingAttendance, setEditingAttendance] = useState<AttendanceDaily | null>(null);
-    const { data: dailyAttendanceData, error, isLoading, mutate } = useSWR<AttendanceDaily[]>(
-        studentId ? `/api/attendances/get-nis/${studentId}` : null,
-        fetcher
-    );
-    const { toast } = useToast();
-    const { data: session } = useSession();
-    const { data: student } = useSWR<Student>(studentId ? `/api/students/${studentId}` : null, fetcher);
-
-    // Check user roles
-    const userRole = session?.user?.jabatan;
-    const canPerformEditDelete = userRole === 'Admin' || userRole === 'Guru BK';
-
-    const totalPages = Math.ceil((dailyAttendanceData?.length || 0) / ATTENDANCE_PER_PAGE);
-    const startIndex = (currentPage - 1) * ATTENDANCE_PER_PAGE;
-    const endIndex = startIndex + ATTENDANCE_PER_PAGE;
-    const currentAttendance = dailyAttendanceData?.slice(startIndex, endIndex) || [];
-
-    const handlePreviousPage = () => {
-        setCurrentPage((prev) => Math.max(prev - 1, 1));
-    };
-
-    const handleNextPage = () => {
-        setCurrentPage((prev) => Math.min(prev + 1, totalPages));
-    };
-
-    const handleDelete = async (attendanceId: number) => {
-        if (!canPerformEditDelete) {
-            toast({
-                title: 'Akses Ditolak',
-                description: 'Hanya admin dan guru BK yang dapat menghapus absensi.',
-                variant: 'destructive',
-            });
-            return;
-        }
-
-        try {
-            const response = await fetch(`/api/attendances/${attendanceId}`, {
-                method: 'DELETE',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-            });
-
-            if (!response.ok) {
-                const data = await response.json();
-                throw new Error(data.message || 'Gagal menghapus absensi.');
-            }
-
-            toast({
-                title: 'Sukses',
-                description: 'Absensi berhasil dihapus.',
-            });
-
-            // Refresh the attendance data
-            mutate();
-        } catch (error) {
-            toast({
-                title: 'Gagal',
-                description:
-                    error instanceof Error
-                        ? error.message
-                        : 'Terjadi kesalahan saat menghapus absensi.',
-                variant: 'destructive',
-            });
-        }
-    };
-
-    const getBadgeVariant = (status: AttendanceDaily['status_absensi']) => {
-        switch (status) {
-            case 'Hadir':
-                return 'secondary';
-            case 'Sakit':
-                return 'default';
-            case 'Alpha':
-                return 'destructive';
-            default:
-                return 'secondary';
-        }
-    };
-    
-    const getBadgeClass = (status: AttendanceDaily['status_absensi']) => {
-        switch (status) {
-            case 'Hadir':
-                return 'bg-green-100 text-green-800';
-            case 'Sakit':
-                return 'bg-yellow-100 text-yellow-800';
-            default:
-                return '';
-        }
-    };
-
-    if (isLoading) {
-        return (
-            <Card>
-                <CardHeader>
-                    <CardTitle>Log Absensi Harian</CardTitle>
-                </CardHeader>
-                <CardContent className="flex items-center justify-center h-48">
-                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                </CardContent>
-            </Card>
-        );
-    }
-
-    if (error) {
-        return (
-            <Card>
-                <CardHeader>
-                    <CardTitle>Log Absensi Harian</CardTitle>
-                </CardHeader>
-                <CardContent className="text-center text-muted-foreground p-6">
-                    Gagal memuat data absensi.
-                </CardContent>
-            </Card>
-        );
-    }
-
-    return (
-        <>
-            <Card>
-                <CardHeader>
-                    <CardTitle>Log Absensi Harian</CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Tanggal</TableHead>
-                                <TableHead>Status</TableHead>
-                                {canPerformEditDelete && (
-                                    <TableHead>
-                                        <span className="sr-only">Aksi</span>
-                                    </TableHead>
-                                )}
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {currentAttendance.length > 0 ? (
-                                currentAttendance.map((att) => (
-                                    <TableRow key={att.id}>
-                                        <TableCell>
-                                            {new Date(att.tanggal).toLocaleDateString('id-ID', {
-                                                year: 'numeric',
-                                                month: 'long',
-                                                day: 'numeric',
-                                            })}
-                                        </TableCell>
-                                        <TableCell>
-                                            <Badge
-                                                variant={getBadgeVariant(att.status_absensi)}
-                                                className={getBadgeClass(att.status_absensi)}
-                                            >
-                                                {att.status_absensi}
-                                            </Badge>
-                                        </TableCell>
-                                        {canPerformEditDelete && (
-                                            <TableCell>
-                                                <DropdownMenu>
-                                                    <DropdownMenuTrigger asChild>
-                                                        <Button
-                                                            aria-haspopup="true"
-                                                            size="icon"
-                                                            variant="ghost"
-                                                        >
-                                                            <MoreVertical className="h-4 w-4" />
-                                                            <span className="sr-only">Toggle menu</span>
-                                                        </Button>
-                                                    </DropdownMenuTrigger>
-                                                    <DropdownMenuContent align="end">
-                                                        <AttendanceForm 
-                                                            student={student} 
-                                                            attendance={att}
-                                                        >
-                                                            <DropdownMenuItem
-                                                                onSelect={(e) => e.preventDefault()}
-                                                            >
-                                                                Edit
-                                                            </DropdownMenuItem>
-                                                        </AttendanceForm>
-                                                        <DeleteConfirmationDialog
-                                                            onConfirm={() => handleDelete(att.id)}
-                                                        >
-                                                            <DropdownMenuItem
-                                                                onSelect={(e) => e.preventDefault()}
-                                                                className="text-destructive focus:text-destructive"
-                                                            >
-                                                                Hapus
-                                                            </DropdownMenuItem>
-                                                        </DeleteConfirmationDialog>
-                                                    </DropdownMenuContent>
-                                                </DropdownMenu>
-                                            </TableCell>
-                                        )}
-                                    </TableRow>
-                                ))
-                            ) : (
-                                <TableRow>
-                                    <TableCell colSpan={canPerformEditDelete ? 3 : 2} className="text-center">
-                                        Tidak ada data absensi.
-                                    </TableCell>
-                                </TableRow>
-                            )}
-                        </TableBody>
-                    </Table>
-                </CardContent>
-                {totalPages > 1 && (
-                    <CardFooter className="flex items-center justify-between">
-                        <span className="text-sm text-muted-foreground">
-                            Halaman {currentPage} dari {totalPages}
-                        </span>
-                        <div className="flex items-center gap-2">
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={handlePreviousPage}
-                                disabled={currentPage === 1}
-                            >
-                                <ChevronLeft className="h-4 w-4" />
-                                Sebelumnya
-                            </Button>
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={handleNextPage}
-                                disabled={currentPage === totalPages}
-                            >
-                                Berikutnya
-                                <ChevronRight className="h-4 w-4" />
-                            </Button>
-                        </div>
-                    </CardFooter>
-                )}
-            </Card>
-        </>
-    );
-}
-
-// Komponen StudentProfileClient
 export function StudentProfileClient({ id }: StudentProfileClientProps) {
     const {
         data: student,
         error: studentError,
         isLoading: studentLoading,
-    } = useSWR<Student>(`/api/students/${id}`, fetcher);
+    } = useSWR<Student>(`/api/students/nis/${id}`, fetcher);
+    
     const {
         data: studentViolations,
         error: studentViolationsError,
         isLoading: violationsLoading,
-    } = useSWR<Violation[]>(`/api/violations-log/${id}`, fetcher);
+    } = useSWR<Violation[]>(`/api/violations-log/nis/${id}`, fetcher);
+    
     const { toast } = useToast();
     const { mutate } = useSWRConfig();
-    const { data: session } = useSession();
 
-    const [currentPage, setCurrentPage] = useState(1);
-
-    // Check user roles
-    const userRole = session?.user?.jabatan;
-    const canPerformDelete = userRole === 'Admin' || userRole === 'Guru BK';
-
-    // 🚨 PERBAIKAN: Menambahkan guard clause untuk menghindari error saat data undefined
-    const violations = studentViolations || [];
-    const totalPages = Math.ceil(violations.length / VIOLATIONS_PER_PAGE);
-    const startIndex = (currentPage - 1) * VIOLATIONS_PER_PAGE;
-    const endIndex = startIndex + VIOLATIONS_PER_PAGE;
-    const currentViolations = violations.slice(startIndex, endIndex);
-
-    const handlePreviousPage = () => {
-        setCurrentPage((prev) => Math.max(prev - 1, 1));
-    };
-
-    const handleNextPage = () => {
-        setCurrentPage((prev) => Math.min(prev + 1, totalPages));
-    };
-
-    const handleDelete = async (violationId: number) => {
-        // Check if user has permission to delete
-        if (!canPerformDelete) {
-            toast({
-                title: 'Akses Ditolak',
-                description: 'Hanya admin dan guru BK yang dapat menghapus pelanggaran.',
-                variant: 'destructive',
-            });
-            return;
-        }
-
+    const handleDeleteViolation = async (violationId: string) => {
         try {
             const response = await fetch(`/api/violations-log/${violationId}`, {
                 method: 'DELETE',
@@ -669,9 +55,9 @@ export function StudentProfileClient({ id }: StudentProfileClientProps) {
             });
 
             // Refresh the violations data
-            mutate(`/api/violations-log/${id}`);
-            mutate(`/api/students/${id}`);
-            mutate(`/api/sanctions/${id}`);
+            mutate(`/api/violations-log/nis/${id}`);
+            mutate(`/api/students/nis/${id}`);
+            mutate(`/api/sanctions/nis/${id}`);
         } catch (error) {
             toast({
                 title: 'Gagal',
@@ -684,227 +70,45 @@ export function StudentProfileClient({ id }: StudentProfileClientProps) {
         }
     };
 
-    const totalPoints = student?.total_poin;
-
-    const getPointsCardClassName = () => {
-        if (typeof totalPoints !== 'number' || totalPoints === 0) {
-            return 'bg-gray-100 border-gray-200';
-        }
-        if (totalPoints > 0 && totalPoints <= 50) {
-            return 'bg-yellow-100 border-yellow-200';
-        } else {
-            return 'bg-destructive/10 border-destructive/20';
-        }
+    const handleRetry = () => {
+        mutate(`/api/students/nis/${id}`);
+        mutate(`/api/violations-log/nis/${id}`);
     };
 
-    const getPointsTextClassName = () => {
-        if (typeof totalPoints !== 'number' || totalPoints === 0) {
-            return 'text-gray-500';
-        }
-        if (totalPoints > 0 && totalPoints <= 50) {
-            return 'text-yellow-600';
-        } else {
-            return 'text-destructive';
-        }
-    };
-
+    // Loading state
     if (studentLoading || violationsLoading) {
-        return (
-            <div className="flex flex-col gap-4 p-4">
-                <Loader2 className="h-6 w-6 animate-spin text-gray-500 mx-auto" />
-                <p className="text-center text-muted-foreground">Memuat data siswa...</p>
-            </div>
-        );
+        return <StudentLoadingState />;
     }
 
+    // Error state
     if (studentError || studentViolationsError) {
-        return (
-            <div className="flex flex-col gap-4 p-4">
-                <p className="text-center text-muted-foreground">Data siswa tidak ditemukan.</p>
-            </div>
-        );
+        const errorMessage = studentError?.message || studentViolationsError?.message || 'Unknown error';
+        return <StudentErrorState studentId={id} errorMessage={errorMessage} onRetry={handleRetry} />;
     }
-
+    
+    // Main content
     return (
         <div className="flex flex-col gap-4">
-            <div className="flex items-start justify-between gap-4">
-                <div>
-                    <h1 className="text-3xl font-bold font-headline">{student?.nama_lengkap}</h1>
-                    <p className="text-muted-foreground">
-                        {student?.nis} • {student?.kelas}
-                    </p>
-                </div>
-                <Card className={`w-full max-w-xs ${getPointsCardClassName()}`}>
-                    <CardHeader className="pb-2">
-                        <CardTitle className={`text-sm font-medium ${getPointsTextClassName()}`}>
-                            Total Poin Pelanggaran
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className={`text-5xl font-bold ${getPointsTextClassName()}`}>
-                            {totalPoints}
-                        </div>
-                    </CardContent>
-                </Card>
-            </div>
-
-            <div className="flex justify-start gap-2">
-                <ViolationLogForm student={student}>
-                    <Button>
-                        <PlusCircle className="mr-2 h-4 w-4" />
-                        Catat Pelanggaran
-                    </Button>
-                </ViolationLogForm>
-                <AttendanceForm student={student}>
-                    <Button variant="outline">
-                        <PlusCircle className="mr-2 h-4 w-4" />
-                        Tambah Absensi
-                    </Button>
-                </AttendanceForm>
-            </div>
+            <StudentHeader student={student} />
+            
+            <StudentActions student={student} />
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                 <div className="lg:col-span-2 space-y-4">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Riwayat Pelanggaran</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            {violationsLoading ? (
-                                <div className="flex items-center justify-center h-48">
-                                    <div
-                                        className="w-8 h-8 border-4 border-gray-200 rounded-full animate-spin"
-                                        style={{ borderTopColor: 'black' }}
-                                    />
-                                </div>
-                            ) : (
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>Tanggal Terjadi</TableHead>
-                                            <TableHead>Jenis Pelanggaran</TableHead>
-                                            <TableHead>Catatan</TableHead>
-                                            <TableHead className="text-right">Poin</TableHead>
-                                            <TableHead>
-                                                <span className="sr-only">Aksi</span>
-                                            </TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {currentViolations.length > 0 ? (
-                                            currentViolations.map((v) => (
-                                                <TableRow key={v.id}>
-                                                    <TableCell>
-                                                        {new Date(
-                                                            v.tanggal_terjadi
-                                                        ).toLocaleDateString('id-ID')}
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <Badge variant="secondary">
-                                                            {v.jenis_pelanggaran}
-                                                        </Badge>
-                                                    </TableCell>
-                                                    <TableCell>{v.catatan}</TableCell>
-                                                    <TableCell className="text-right font-medium">
-                                                        <Badge
-                                                            variant="destructive"
-                                                            className="text-xs"
-                                                        >
-                                                            +{v.poin}
-                                                        </Badge>
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <DropdownMenu>
-                                                            <DropdownMenuTrigger asChild>
-                                                                <Button
-                                                                    aria-haspopup="true"
-                                                                    size="icon"
-                                                                    variant="ghost"
-                                                                >
-                                                                    <MoreVertical className="h-4 w-4" />
-                                                                    <span className="sr-only">
-                                                                        Toggle menu
-                                                                    </span>
-                                                                </Button>
-                                                            </DropdownMenuTrigger>
-                                                            <DropdownMenuContent align="end">
-                                                                <ViolationLogForm
-                                                                    violation={v}
-                                                                    student={student}
-                                                                >
-                                                                    <DropdownMenuItem
-                                                                        onSelect={(e) =>
-                                                                            e.preventDefault()
-                                                                        }
-                                                                    >
-                                                                        Edit
-                                                                    </DropdownMenuItem>
-                                                                </ViolationLogForm>
-                                                                {canPerformDelete && (
-                                                                    <DeleteConfirmationDialog
-                                                                        onConfirm={() =>
-                                                                            handleDelete(v.id)
-                                                                        }
-                                                                    >
-                                                                        <DropdownMenuItem
-                                                                            onSelect={(e) =>
-                                                                                e.preventDefault()
-                                                                            }
-                                                                            className="text-destructive focus:text-destructive"
-                                                                        >
-                                                                            Hapus
-                                                                        </DropdownMenuItem>
-                                                                    </DeleteConfirmationDialog>
-                                                                )}
-                                                            </DropdownMenuContent>
-                                                        </DropdownMenu>
-                                                    </TableCell>
-                                                </TableRow>
-                                            ))
-                                        ) : (
-                                            <TableRow>
-                                                <TableCell colSpan={5} className="text-center">
-                                                    Tidak ada riwayat pelanggaran.
-                                                </TableCell>
-                                            </TableRow>
-                                        )}
-                                    </TableBody>
-                                </Table>
-                            )}
-                        </CardContent>
-                        {totalPages > 1 && (
-                            <CardFooter className="flex items-center justify-between">
-                                <span className="text-sm text-muted-foreground">
-                                    Halaman {currentPage} dari {totalPages}
-                                </span>
-                                <div className="flex items-center gap-2">
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={handlePreviousPage}
-                                        disabled={currentPage === 1}
-                                    >
-                                        <ChevronLeft className="h-4 w-4" />
-                                        Sebelumnya
-                                    </Button>
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={handleNextPage}
-                                        disabled={currentPage === totalPages}
-                                    >
-                                        Berikutnya
-                                        <ChevronRight className="h-4 w-4" />
-                                    </Button>
-                                </div>
-                            </CardFooter>
-                        )}
-                    </Card>
+                    <StudentViolationsTable
+                        violations={studentViolations || []}
+                        isLoading={violationsLoading}
+                        student={student}
+                        onDelete={handleDeleteViolation}
+                    />
+                    
+                    <AttendanceSummaryCard studentId={id} />
+                    
                     <AttendanceLogCard studentId={id} />
                 </div>
-                <div className="lg:col-span-1 space-y-4">
-                    <SanctionsCard studentId={id} />
-                    <AttendanceSummaryCard studentId={id} />
+
+                <div className="space-y-4">
+                    <StudentSanctionsCard studentId={id} />
                 </div>
             </div>
         </div>

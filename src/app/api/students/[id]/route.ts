@@ -18,7 +18,7 @@ export async function GET(
         }
 
         // Memanggil endpoint backend dengan parameter ID
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/get-student/?nis=${id}`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/students/${id}`, {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
@@ -27,10 +27,8 @@ export async function GET(
         });
 
         const data = await response.json();
-        if (data.total_poin === ''){
-            data.total_poin = 0;
-        }
         if (!response.ok) {
+          console.log(data);
             return NextResponse.json(
                 { message: data.message || 'Failed to fetch student data' },
                 { status: response.status }
@@ -58,20 +56,15 @@ export async function PUT(
             return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         }
 
-        // Check if user has permission (Admin or Guru BK)
-        if (token.jabatan !== 'Admin' && token.jabatan !== 'Guru BK') {
-            return NextResponse.json({ message: 'Forbidden: Insufficient permissions' }, { status: 403 });
-        }
-
         const body = await req.json();
 
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/edit-student`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/students/${id}`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
                 Authorization: `Bearer ${token.jwt}`,
             },
-            body: JSON.stringify({ ...body, nis_lama: id }),
+            body: JSON.stringify(body),
         });
 
         const data = await response.json();
@@ -103,18 +96,12 @@ export async function DELETE(
             return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         }
 
-        // Check if user has permission (Admin or Guru BK)
-        if (token.jabatan !== 'Admin' && token.jabatan !== 'Guru BK') {
-            return NextResponse.json({ message: 'Forbidden: Insufficient permissions' }, { status: 403 });
-        }
-
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/delete-student`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/students/${id}`, {
             method: 'DELETE',
             headers: {
                 'Content-Type': 'application/json',
                 Authorization: `Bearer ${token.jwt}`,
             },
-            body: JSON.stringify({ nis: id }),
         });
 
         const data = await response.json();

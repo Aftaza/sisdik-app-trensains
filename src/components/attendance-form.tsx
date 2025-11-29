@@ -15,6 +15,7 @@ import {
 import { Button } from './ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from './ui/form';
 import { Input } from './ui/input';
+import { Textarea } from './ui/textarea';
 import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import type { AttendanceDaily, Student } from '@/lib/data';
@@ -23,12 +24,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { useSWRConfig } from 'swr';
 import { Loader2 } from 'lucide-react';
 
+// Updated form schema to match new API
 const formSchema = z.object({
-    studentId: z.string(),
-    studentName: z.string(),
-    studentNis: z.string(),
+    student_id: z.string().uuid('Student ID harus valid'),
     date: z.date({ required_error: 'Tanggal harus diisi.' }),
-    status: z.enum(['Hadir', 'Sakit', 'Izin', 'Alpha'], { required_error: 'Status harus dipilih.' }),
+    status: z.enum(['hadir', 'sakit', 'izin', 'alpha'], { 
+        required_error: 'Status harus dipilih.' 
+    }),
+    notes: z.string().optional(),
 });
 
 type AttendanceFormValues = z.infer<typeof formSchema>;
@@ -48,36 +51,30 @@ export function AttendanceForm({ children, student, attendance }: AttendanceForm
     const form = useForm<AttendanceFormValues>({
         resolver: zodResolver(formSchema),
         defaultValues: {
-            studentId: student?.nis?.toString() || '',
-            studentName: student?.nama_lengkap || '',
-            studentNis: student?.nis?.toString() || '',
+            student_id: student?.id || '',
             date: new Date(),
             status: undefined,
+            notes: '',
         },
     });
 
     useEffect(() => {
         if (open) {
-            const isValidStatus = (status: string): status is "Hadir" | "Sakit" | "Izin" | "Alpha" => {
-                return ['Hadir', 'Sakit', 'Izin', 'Alpha'].includes(status);
-            };
             if (attendance) {
                 // Edit mode
                 form.reset({
-                    studentId: attendance.id?.toString() || student?.nis?.toString() || '',
-                    studentName: attendance.nama_siswa || student?.nama_lengkap || '',
-                    studentNis: attendance.nis_siswa?.toString() || student?.nis?.toString() || '',
-                    date: attendance.tanggal ? new Date(attendance.tanggal) : new Date(),
-                    status: isValidStatus(attendance.status_absensi) ? attendance.status_absensi : undefined,
+                    student_id: attendance.student_id || student?.id || '',
+                    date: attendance.date ? new Date(attendance.date) : new Date(),
+                    status: attendance.status as 'hadir' | 'sakit' | 'izin' | 'alpha',
+                    notes: attendance.notes || '',
                 });
             } else {
                 // Create mode
                 form.reset({
-                    studentId: student?.nis?.toString() || '',
-                    studentName: student?.nama_lengkap || '',
-                    studentNis: student?.nis?.toString() || '',
+                    student_id: student?.id || '',
                     date: new Date(),
                     status: undefined,
+                    notes: '',
                 });
             }
         }
@@ -92,18 +89,19 @@ export function AttendanceForm({ children, student, attendance }: AttendanceForm
                 
             const method = attendance ? 'PUT' : 'POST';
 
+            const body = {
+                student_id: values.student_id,
+                date: values.date.toISOString().split('T')[0], // Format: YYYY-MM-DD
+                status: values.status,
+                notes: values.notes || '',
+            };
+
             const response = await fetch(url, {
                 method,
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({
-                    tanggal: values.date.toISOString(),
-                    nis_siswa: values.studentNis,
-                    nama_siswa: values.studentName,
-                    kelas: student?.kelas,
-                    status_absensi: values.status,
-                }),
+                body: JSON.stringify(body),
             });
 
             if (!response.ok) {
@@ -113,10 +111,13 @@ export function AttendanceForm({ children, student, attendance }: AttendanceForm
 
             toast({
                 title: 'Sukses',
-                description: `Absensi untuk ${values.studentName} pada tanggal ${values.date.toLocaleDateString()} berhasil ${attendance ? 'diedit' : 'dicatat'}.`,
+                description: `Absensi untuk ${student?.name} pada tanggal ${values.date.toLocaleDateString()} berhasil ${attendance ? 'diedit' : 'dicatat'}.`,
             });
 
             // Refresh the attendance data
+            if (student) {
+                mutate(`/api/attendances/get-nis/${student.nis}`);
+            }
             mutate((key: string) => typeof key === 'string' && key.startsWith('/api/attendances'));
             
             setOpen(false);
@@ -152,14 +153,19 @@ export function AttendanceForm({ children, student, attendance }: AttendanceForm
                 </DialogHeader>
                 <Form {...form}>
                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                        {/* Student Name (Read-only) */}
                         <div className="space-y-2">
                             <FormLabel>Nama Siswa</FormLabel>
-                            <Input value={student?.nama_lengkap} disabled />
+                            <Input value={student?.name || '-'} disabled />
                         </div>
+
+                        {/* Student NIS (Read-only) */}
                         <div className="space-y-2">
                             <FormLabel>NIS Siswa</FormLabel>
-                            <Input value={student?.nis} disabled />
+                            <Input value={student?.nis || '-'} disabled />
                         </div>
+
+                        {/* Date Picker */}
                         <FormField
                             control={form.control}
                             name="date"
@@ -173,6 +179,8 @@ export function AttendanceForm({ children, student, attendance }: AttendanceForm
                                 </FormItem>
                             )}
                         />
+
+                        {/* Status Selection */}
                         <FormField
                             control={form.control}
                             name="status"
@@ -186,30 +194,48 @@ export function AttendanceForm({ children, student, attendance }: AttendanceForm
                                             </SelectTrigger>
                                         </FormControl>
                                         <SelectContent>
-                                            <SelectItem value="Hadir">Hadir</SelectItem>
-                                            <SelectItem value="Sakit">Sakit</SelectItem>
-                                            <SelectItem value="Izin">Izin</SelectItem>
-                                            <SelectItem value="Alpha">Alpha</SelectItem>
+                                            <SelectItem value="hadir">Hadir</SelectItem>
+                                            <SelectItem value="sakit">Sakit</SelectItem>
+                                            <SelectItem value="izin">Izin</SelectItem>
+                                            <SelectItem value="alpha">Alpha</SelectItem>
                                         </SelectContent>
                                     </Select>
                                     <FormMessage />
                                 </FormItem>
                             )}
                         />
+
+                        {/* Notes (Optional) */}
+                        <FormField
+                            control={form.control}
+                            name="notes"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Catatan (Opsional)</FormLabel>
+                                    <FormControl>
+                                        <Textarea
+                                            placeholder="Contoh: Sakit demam"
+                                            {...field}
+                                        />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+
                         <DialogFooter>
                             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
                                 Batal
                             </Button>
-                            <Button type="submit">
+                            <Button type="submit" disabled={isSubmitting}>
                                 {isSubmitting ? (
-                                        <>
-                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                            Menyimpan...
-                                        </>
-                                    ) : (
-                                        attendance ? 'Simpan Perubahan' : 'Simpan'
-                                    )
-                                }
+                                    <>
+                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                        Menyimpan...
+                                    </>
+                                ) : (
+                                    attendance ? 'Simpan Perubahan' : 'Simpan'
+                                )}
                             </Button>
                         </DialogFooter>
                     </form>

@@ -7,8 +7,11 @@ import 'next-auth/jwt';
 declare module 'next-auth/jwt' {
     interface JWT {
         jwt?: string;
-        nama?: string;
-        jabatan?: string;
+        id?: string;
+        name?: string;
+        email?: string;
+        nip?: string;
+        role?: string;
     }
 }
 
@@ -17,9 +20,11 @@ declare module 'next-auth' {
     interface Session {
         jwt?: string; // Properti kustom di level session
         user: {
-            jabatan?: string; // Properti kustom di dalam user
-            // Pertahankan properti bawaan lainnya
-            nama?: string;
+            id?: string;
+            name?: string;
+            email?: string;
+            nip?: string;
+            role?: string;
         };
     }
 }

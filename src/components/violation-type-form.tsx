@@ -34,7 +34,7 @@ type ViolationTypeFormProps = {
     onSuccess?: () => void;
 };
 
-const categoryOptions = ['Ringan', 'Sedang', 'Berat', 'Meninggalkan Kewajiban'];
+const categoryOptions = ['Ringan', 'Sedang', 'Berat', 'Kewajiban'];
 
 export function ViolationTypeForm({ children, violationType, onSuccess }: ViolationTypeFormProps) {
     const [open, setOpen] = useState(false);
@@ -55,8 +55,8 @@ export function ViolationTypeForm({ children, violationType, onSuccess }: Violat
     useEffect(() => {
         if (isEditMode && violationType) {
             form.reset({
-                name: violationType.nama_pelanggaran,
-                category: violationType.kategori,
+                name: violationType.name || '',
+                category: violationType.kategori || '',
                 points: violationType.poin || 0,
             });
         } else {
@@ -72,7 +72,7 @@ export function ViolationTypeForm({ children, violationType, onSuccess }: Violat
         try {
             setIsSubmitting(true);
             // Get the creator name from session
-            const creatorName = session?.user?.nama || 'Unknown';
+            const creatorName = session?.user?.name || 'Unknown';
             
             let response;
             
@@ -84,10 +84,10 @@ export function ViolationTypeForm({ children, violationType, onSuccess }: Violat
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({
-                        nama_pelanggaran: values.name,
+                        name: values.name,
+                        description: '',
                         kategori: values.category,
                         poin: values.points,
-                        pembuat: creatorName,
                     }),
                 });
             } else {
@@ -98,10 +98,10 @@ export function ViolationTypeForm({ children, violationType, onSuccess }: Violat
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({
-                        nama_pelanggaran: values.name,
+                        name: values.name,
+                        description: '',
                         kategori: values.category,
                         poin: values.points,
-                        pembuat: creatorName,
                     }),
                 });
             }
@@ -130,9 +130,6 @@ export function ViolationTypeForm({ children, violationType, onSuccess }: Violat
             setIsSubmitting(false);
         }
     }
-
-    // Get the creator name from session
-    const creatorName = session?.user?.nama || 'Unknown';
 
     return (
         <Dialog open={open} onOpenChange={setOpen}>
@@ -202,12 +199,6 @@ export function ViolationTypeForm({ children, violationType, onSuccess }: Violat
                                 </FormItem>
                             )}
                         />
-                        <div className="space-y-2">
-                            <FormLabel>Dibuat Oleh</FormLabel>
-                            <div className="rounded-md border border-input px-3 py-2 text-sm">
-                                {creatorName}
-                            </div>
-                        </div>
                         <DialogFooter>
                             <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={isSubmitting}>
                                 Batal
