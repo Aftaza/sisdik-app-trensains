@@ -37,21 +37,21 @@ SISDIK APP adalah aplikasi administrasi pelanggaran dan absensi siswa berbasis w
 - **Form Handling**: React Hook Form dengan Zod validation
 - **Authentication**: NextAuth.js
 - **Charting**: Recharts untuk visualisasi data
-- **Database**: Firebase (dikonfigurasi dalam project)
+- **Backend**: REST API terpisah (`NEXT_PUBLIC_API_BASE_URL`), diakses lewat route handler Next.js di `src/app/api`
 - **Deployment**: Vercel (kompatibel)
 
 ## Prasyarat Sistem
 
 - Node.js >= 18.x
 - npm atau yarn
-- Firebase project (untuk database)
+- Backend API SISDIK yang sudah berjalan
 
 ## Instalasi
 
 1. Clone repository:
    ```bash
-   git clone <repository-url>
-   cd sisdik-app
+   git clone https://github.com/Aftaza/sisdik-app-trensains.git
+   cd sisdik-app-trensains
    ```
 
 2. Install dependencies:
@@ -63,7 +63,7 @@ SISDIK APP adalah aplikasi administrasi pelanggaran dan absensi siswa berbasis w
    ```bash
    cp .env.example .env.local
    ```
-   Edit `.env.local` dengan konfigurasi Firebase Anda
+   Isi `NEXTAUTH_URL`, `NEXTAUTH_SECRET`, dan `NEXT_PUBLIC_API_BASE_URL` di `.env.local`
 
 4. Jalankan development server:
    ```bash
@@ -134,18 +134,6 @@ npm start
 ```bash
 npm run typecheck
 ```
-
-## Kontribusi
-
-1. Fork repository ini
-2. Buat branch fitur (`git checkout -b feature/AmazingFeature`)
-3. Commit perubahan Anda (`git commit -m 'Add some AmazingFeature'`)
-4. Push ke branch (`git push origin feature/AmazingFeature`)
-5. Buka Pull Request
-
-## Lisensi
-
-Proyek ini dilisensikan di bawah lisensi MIT - lihat file [LICENSE](LICENSE) untuk detail lebih lanjut.
 
 ## Kontak
 
